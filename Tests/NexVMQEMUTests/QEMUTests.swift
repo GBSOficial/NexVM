@@ -72,6 +72,18 @@ final class QEMUCommandBuilderTests: XCTestCase {
         XCTAssertTrue(zip(headless, headless.dropFirst()).contains { $0 == "-display" && $1 == "none" })
     }
 
+    func testEmbeddedDisplayUsesPrivateVNCUnixSocketAndNoWindow() throws {
+        let c = config(guest: .linuxARM64, iface: .virtioBlk)
+        let a = try QEMUCommandBuilder(installation: install).build(
+            configuration: c, bundle: bundle, firmware: fw, qmpSocket: qmp,
+            vncSocket: URL(fileURLWithPath: "/tmp/nexvm-fake/vnc.sock"), options: QEMUBuildOptions(embeddedDisplay: true)).arguments
+        XCTAssertTrue(zip(a, a.dropFirst()).contains { $0 == "-display" && $1 == "none" })
+        XCTAssertTrue(zip(a, a.dropFirst()).contains { $0 == "-vnc" && $1 == "unix:/tmp/nexvm-fake/vnc.sock" })
+        XCTAssertFalse(a.contains { $0.contains("cocoa") })
+        // Without the option the VNC server is never started.
+        XCTAssertFalse(try build(c).contains("-vnc"))
+    }
+
     func testQMPIsUnixSocketOnly() throws {
         let a = try build(config(guest: .linuxARM64, iface: .virtioBlk))
         XCTAssertTrue(a.contains("unix:/tmp/nexvm-fake/qmp.sock,server=on,wait=off"))

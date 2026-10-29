@@ -1,13 +1,16 @@
 import SwiftUI
+import AppKit
 import NexVMCore
 import NexVMEngine
 
-/// One window per VM, separate from the management window. It never draws guest output:
-/// the guest display is the QEMU window (embedded display is not implemented yet).
+/// One window per VM, separate from the management window. While the VM runs (and the embedded
+/// display is enabled) it shows the guest screen; otherwise it shows the VM's details.
 struct VMWindowView: View {
     @Bindable var model: LibraryViewModel
     let vmID: UUID?
     @State private var logTail = ""
+    @State private var display = DisplaySession()
+    @State private var showInspector = false
 
     var body: some View {
         if let item = model.item(vmID) {
@@ -18,10 +21,85 @@ struct VMWindowView: View {
         }
     }
 
+    private func isLive(_ s: VMRuntimeState) -> Bool { s == .running || s == .stopping || s == .paused }
+
     private func content(_ item: VMItem) -> some View {
         let c = item.configuration
         let state = model.state(of: item)
         let cmd = LifecycleCommands(state: state, startBlocked: model.startBlocker(for: c.guest) != nil)
+        let showDisplay = model.embeddedDisplay && isLive(state)
+
+        return Group {
+            if showDisplay {
+                displayArea
+                    .inspector(isPresented: $showInspector) { details(item, state: state).inspectorColumnWidth(min: 260, ideal: 320, max: 420) }
+            } else {
+                details(item, state: state)
+            }
+        }
+        .frame(minWidth: 520, minHeight: 420)
+        .navigationTitle(c.name)
+        .navigationSubtitle(L(state.titleKey))
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if showDisplay {
+                    Button { Task { await display.sendCtrlAltDel() } } label: { Label(L("action.ctrlaltdel"), systemImage: "command.square") }
+                        .disabled(display.status != .connected).help(L("help.ctrlaltdel"))
+                    Button { NSApp.keyWindow?.toggleFullScreen(nil) } label: { Label(L("action.fullscreen"), systemImage: "arrow.up.left.and.arrow.down.right") }
+                        .help(L("help.fullscreen"))
+                    Button { showInspector.toggle() } label: { Label(L("action.inspector"), systemImage: "sidebar.right") }
+                        .help(L("action.inspector"))
+                }
+                Button { model.start(item) } label: { Label(L("action.run"), systemImage: "play.fill") }
+                    .disabled(!cmd.canStart).help(model.startBlocker(for: c.guest) ?? L("help.start"))
+                Button { model.requestShutdown(item) } label: { Label(L("action.shutdown"), systemImage: "power") }
+                    .disabled(!cmd.canShutdown).help(L("help.shutdown"))
+                Button { model.restart(item) } label: { Label(L("action.restart"), systemImage: "arrow.clockwise") }
+                    .disabled(!cmd.canRestart).help(L("help.restart"))
+                Button { model.forceStop(item) } label: { Label(L("action.forcestop"), systemImage: "xmark.octagon") }
+                    .disabled(!cmd.canForceStop).help(L("help.forcestop"))
+            }
+        }
+        // Attach to the VM's VNC display while it is live; drop it when the VM stops.
+        .task(id: showDisplay) {
+            if showDisplay {
+                for _ in 0..<20 {   // the engine publishes the socket right after QEMU starts
+                    if let path = await model.displaySocketPath(for: item) { await display.connect(socketPath: path); return }
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
+                await display.connect(socketPath: "")   // surfaces a clear failure
+            } else {
+                display.disconnect()
+            }
+        }
+        .task(id: item.id) {
+            while !Task.isCancelled {
+                logTail = model.qemuLogTail(for: item)
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+        .onDisappear { display.disconnect() }
+    }
+
+    private var displayArea: some View {
+        ZStack {
+            EmbeddedDisplayView(session: display)
+            switch display.status {
+            case .connecting, .idle:
+                VStack(spacing: 10) { ProgressView(); Text(L("display.connecting")).foregroundStyle(.secondary) }
+                    .padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            case .failed(let message):
+                Label(L("display.failed", message), systemImage: "exclamationmark.triangle.fill")
+                    .padding(16).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            case .connected:
+                EmptyView()
+            }
+        }
+        .background(Color.black)
+    }
+
+    private func details(_ item: VMItem, state: VMRuntimeState) -> some View {
+        let c = item.configuration
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 14) {
@@ -77,27 +155,6 @@ struct VMWindowView: View {
                 } label: { Text(L("vmwindow.log")).font(.headline) }
             }
             .padding(20)
-        }
-        .frame(minWidth: 520, minHeight: 420)
-        .navigationTitle(c.name)
-        .navigationSubtitle(L(state.titleKey))
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button { model.start(item) } label: { Label(L("action.run"), systemImage: "play.fill") }
-                    .disabled(!cmd.canStart).help(model.startBlocker(for: c.guest) ?? L("help.start"))
-                Button { model.requestShutdown(item) } label: { Label(L("action.shutdown"), systemImage: "power") }
-                    .disabled(!cmd.canShutdown).help(L("help.shutdown"))
-                Button { model.restart(item) } label: { Label(L("action.restart"), systemImage: "arrow.clockwise") }
-                    .disabled(!cmd.canRestart).help(L("help.restart"))
-                Button { model.forceStop(item) } label: { Label(L("action.forcestop"), systemImage: "xmark.octagon") }
-                    .disabled(!cmd.canForceStop).help(L("help.forcestop"))
-            }
-        }
-        .task(id: item.id) {
-            while !Task.isCancelled {
-                logTail = model.qemuLogTail(for: item)
-                try? await Task.sleep(for: .seconds(2))
-            }
         }
     }
 }

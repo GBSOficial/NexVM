@@ -7,10 +7,10 @@ root = Path(__file__).resolve().parent.parent / "Sources/NexVMApp"
 used = set()
 for p in root.rglob("*.swift"):
     used |= set(re.findall(r'\bL\("([^"]+)"', p.read_text()))
-used |= {"library.count.one", "library.count.other"}  # chosen by a ternary
+used |= {"library.count.one", "library.count.other", "sidebar.machines", "sidebar.diagnostics"}  # chosen by a ternary
 # keys built dynamically via titleKey properties
 for p in root.rglob("*.swift"):
-    used |= set(re.findall(r'"((?:guest|state|sidebar|wizard\.step)\.[a-z0-9]+)"', p.read_text()))
+    used |= set(re.findall(r'"((?:guest|state|wizard\.step)\.[a-z0-9]+)"', p.read_text()))
 tables = {}
 for lang in ("en", "pt-BR", "pt-PT"):
     f = root / f"Resources/{lang}.lproj/Localizable.strings"

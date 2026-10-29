@@ -1,12 +1,18 @@
 # Windows 11 ARM64 — status and plan
 
-**Status: Planned. No Windows install has been attempted. Nothing below is evidence of Windows working.**
+**Status: Experimental (Setup runs; install not completed).** The official Windows 11 ARM64 installer (`Windows11_Client_arm64_pt-br_26300_9457.iso`, volume label `CCCOMA_A64FRE_PT-BR_DV9`, build 26300 — an Insider-channel build, not the stable release) boots in NexVM and runs through language, keyboard and installation-option pages, then the product-key page and "Select image" (Home / Home Single Language / Pro). Edition choice, license acceptance and the rest of the install were left to the user and have **not** been done; no disk install, reboot or ACPI shutdown has been tested for Windows.
 
 ## What NexVM already implements (unit-tested, not booted with Windows)
 - Machine: `virt`, HVF, `-cpu host`, edk2 AArch64 UEFI, `ramfb` + xHCI keyboard/tablet.
 - Disk as NVMe (inbox driver), NIC as `e1000e`, user-mode NAT without port forwards.
 - Per-VM TPM 2.0 via `swtpm` (state in `metadata/tpm`, control socket in a private temp dir, `--terminate` so it dies with QEMU). The engine **refuses to start** a Windows VM when `swtpm` is not found; the UI shows why and the wizard warns early.
 - "Eject Install ISO" so the VM can boot from disk after Setup.
+
+## Evidence (2026-10-29, manual, in the NexVM embedded display)
+- UEFI → boot from the ISO works when selected in the firmware Boot Manager. Automatic boot dropped to the UEFI Shell in two attempts because Windows' "Press any key to boot from CD" window passed before a key was sent (a keypress at the right moment is required; NexVM does not automate it yet).
+- Windows Setup UI renders correctly in the embedded display (1280×800 framebuffer), mouse clicks (Avançar, checkbox, link) and keyboard (firmware menus) work, and the screen can go full screen.
+- Setup got past its hardware checks to the image-selection page with `swtpm` TPM 2.0 attached and no Secure Boot keys; which checks the build performs was not examined.
+- Not done on purpose: product key, edition, EULA acceptance (user decisions).
 
 ## Requirements (user side)
 1. Windows 11 ARM64 ISO downloaded by you from Microsoft (<https://www.microsoft.com/software-download/windows11arm64>). NexVM never downloads, bundles or redistributes it.
@@ -24,7 +30,7 @@
 |---|---|
 | Windows Setup accepts the swtpm TPM 2.0 | Win11 requirement check |
 | Secure Boot | The stock `edk2-aarch64-code.fd` has no enrolled Secure Boot keys; whether Setup on ARM64 requires "Secure Boot capable" is unconfirmed. No bypass will be implemented. |
-| `e1000e` has an inbox Windows ARM64 driver | If not, no network during Setup/OOBE until a driver is supplied |
+| `e1000e` has an inbox Windows ARM64 driver | Not yet reached; network is needed for OOBE on some editions |
 | `ramfb` resolution/performance | Fixed framebuffer, no accelerated graphics; Windows ARM guest drivers (e.g. virtio-gpu) are not redistributable by NexVM |
 | NVMe boot, reboot with persisted data | Needs a real install |
 | Clean shutdown via ACPI power button | Needs Windows running |

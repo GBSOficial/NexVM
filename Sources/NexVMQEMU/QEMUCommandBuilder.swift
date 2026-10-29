@@ -31,7 +31,12 @@ public struct QEMUBuildOptions: Equatable, Sendable {
     /// No window; serial console goes to `serialLog` (used by automated boot tests).
     public var headless = false
     public var serialLog: URL?
-    public init(headless: Bool = false, serialLog: URL? = nil) { self.headless = headless; self.serialLog = serialLog }
+    /// Serve the guest display over VNC on a private unix socket (for the embedded NexVM display)
+    /// instead of opening QEMU's own window. No TCP port is opened.
+    public var embeddedDisplay = false
+    public init(headless: Bool = false, serialLog: URL? = nil, embeddedDisplay: Bool = false) {
+        self.headless = headless; self.serialLog = serialLog; self.embeddedDisplay = embeddedDisplay
+    }
 }
 
 public struct QEMUCommandBuilder: Sendable {
@@ -48,6 +53,7 @@ public struct QEMUCommandBuilder: Sendable {
         firmware: QEMUFirmware,
         qmpSocket: URL,
         tpmSocket: URL? = nil,
+        vncSocket: URL? = nil,
         options: QEMUBuildOptions = QEMUBuildOptions()
     ) throws -> QEMULaunchSpec {
         guard c.architecture == .arm64 else { throw QEMUBuildError.unsupportedArchitecture }
@@ -108,7 +114,11 @@ public struct QEMUCommandBuilder: Sendable {
         a += ["-qmp", "unix:\(e(qmpSocket.path)),server=on,wait=off"]
         if let log = options.serialLog { a += ["-serial", "file:\(e(log.path))"] }
         // zoom-to-fit: the guest image scales with the window, so the (often small) guest framebuffer can be enlarged by resizing it.
-        a += ["-display", options.headless ? "none" : "cocoa,zoom-to-fit=on,zoom-interpolation=on"]
+        if options.embeddedDisplay, let vnc = vncSocket {
+            a += ["-display", "none", "-vnc", "unix:\(e(vnc.path))"]
+        } else {
+            a += ["-display", options.headless ? "none" : "cocoa,zoom-to-fit=on,zoom-interpolation=on"]
+        }
 
         return QEMULaunchSpec(executable: installation.system, arguments: a)
     }

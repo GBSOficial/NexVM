@@ -12,6 +12,7 @@ Fase 1 concluída; Fase 2 em andamento: `QEMUEngine` + `QMPClient` validados com
 - `Sources/NexVMEngine` protocolo `VirtualMachineEngine` + `VMRuntimeState` (abstração de backend)
 - `Sources/NexVMQEMU` `QEMUCommandBuilder`, `QMP`, `ManagedProcess`, `QEMUBinaryLocator`
 - `Sources/NexVMDiagnostics` logger JSONL local
+- `Sources/NexVMDisplay` cliente RFB 3.8 (socket unix), `MacKeyMap` (mac keycode → scancode XT)
 - `Sources/NexVMApp` SwiftUI. `Design/` (tema NexVMTheme, componentes), `Views/` (MainWindow, VMCard, NewVMWizard, VMWindow, DiagnosticsView, SettingsView), `Support/` (L() i18n, HardwareDefaults), `LibraryViewModel` (estado de UI na MainActor; ciclo de vida vive no `QEMUEngine`). Strings em `Resources/{en,pt-BR,pt-PT}.lproj`; assets em `Resources/Assets.xcassets`; marca em `assets/brand/`.
 - Janelas: `Window("main")` gerenciamento, `WindowGroup(for: UUID)` uma janela por VM, `Settings` scene. Fechar janelas NÃO para VMs; sair do app com VM rodando pede confirmação e faz force-stop (sem QEMU órfão).
 - Dependências: Core ← Storage/Engine ← QEMU ← App. Não criar ciclos nem módulos vazios (Networking, Display, GuestIntegration, Updater só quando houver código real).
@@ -48,8 +49,8 @@ Menor privilégio, sem sudo, sem kext, sem portas públicas (rede `userNAT` sem 
 
 ## Limitações conhecidas
 - Virtualization.framework não é backend: Windows guest não é oficialmente suportado por ela (ADR-0002).
-- TPM 2.0 para Windows 11: engine gerencia `swtpm` por VM (`SwtpmLaunch`, estado em `metadata/tpm`) e RECUSA iniciar Windows sem ele; `swtpm` 0.10.2 instalado no SSD e validado com QEMU real (TPM no firmware; `tpm-tis-device` exige `ppi=off` sob HVF), mas nenhum Windows foi bootado (ver docs/compatibility/windows-11-arm64.md). Não implementar bypass de requisitos.
+- TPM 2.0 para Windows 11: engine gerencia `swtpm` por VM (`SwtpmLaunch`, estado em `metadata/tpm`) e RECUSA iniciar Windows sem ele; `swtpm` 0.10.2 instalado no SSD e validado com QEMU real (TPM no firmware; `tpm-tis-device` exige `ppi=off` sob HVF), e o instalador oficial do Windows 11 ARM64 já roda na tela embutida até a escolha de edição (instalação NÃO concluída; ver docs/compatibility/windows-11-arm64.md). Não implementar bypass de requisitos.
 - Drivers: Windows não tem driver virtio inbox → disco NVMe e NIC e1000e (a validar em boot real).
-- Display: `-display cocoa,zoom-to-fit=on` do QEMU (janela separada, imagem escala ao redimensionar; resolução interna do convidado continua baixa com `ramfb`); display embutido e tela cheia dentro do NexVM não existem (a janela da VM diz isso). "Restart" = `system_reset` (reset de hardware), não reboot gracioso.
+- Display: embutido via VNC em socket unix privado + cliente RFB próprio (`NexVMDisplay`, ADR-0005); fallback `-display cocoa,zoom-to-fit=on` em Ajustes → Avançado. Sem clipboard, áudio, redimensionamento dinâmico; display embutido e tela cheia dentro do NexVM não existem (a janela da VM diz isso). "Restart" = `system_reset` (reset de hardware), não reboot gracioso.
 - Ícone/marca: master do ícone é upscale de ~257 px e SVGs são reconstruções aproximadas (ver assets/brand/README.md); refazer em resolução nativa antes de release.
 - Windows App Mode e guest agent: apenas projeto (`docs/architecture/windows-app-mode.md`).

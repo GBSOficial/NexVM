@@ -65,7 +65,10 @@ struct VMCard: View {
             Button { model.requestShutdown(item) } label: { Label(L("action.shutdown"), systemImage: "power") }
                 .help(L("help.shutdown"))
         } else {
-            Button { model.start(item) } label: { Label(L("action.start"), systemImage: "play.fill") }
+            Button {
+                model.start(item)
+                if model.embeddedDisplay { openWindow(value: item.id) }   // the display lives in the VM window
+            } label: { Label(L("action.start"), systemImage: "play.fill") }
                 .buttonStyle(.borderedProminent)
                 .disabled(!cmd.canStart)
                 .help(model.startBlocker(for: item.configuration.guest) ?? L("help.start"))
@@ -80,7 +83,10 @@ struct VMContextMenu: View {
 
     var body: some View {
         let cmd = LifecycleCommands(state: model.state(of: item), startBlocked: model.startBlocker(for: item.configuration.guest) != nil)
-        Button(L("action.start"), systemImage: "play.fill") { model.start(item) }.disabled(!cmd.canStart)
+        Button(L("action.start"), systemImage: "play.fill") {
+            model.start(item)
+            if model.embeddedDisplay { openWindow(value: item.id) }
+        }.disabled(!cmd.canStart)
         Button(L("action.shutdown"), systemImage: "power") { model.requestShutdown(item) }.disabled(!cmd.canShutdown)
         Button(L("action.restart"), systemImage: "arrow.clockwise") { model.restart(item) }.disabled(!cmd.canRestart)
         Button(L("action.forcestop"), systemImage: "xmark.octagon") { model.forceStop(item) }.disabled(!cmd.canForceStop)

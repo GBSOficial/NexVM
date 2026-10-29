@@ -2,6 +2,9 @@ import XCTest
 import NexVMCore
 import NexVMEngine
 import NexVMStorage
+import NexVMDisplay
+import ImageIO
+import UniformTypeIdentifiers
 @testable import NexVMQEMU
 
 /// Runs real QEMU/HVF. Skipped when QEMU is not installed. Work files live under
@@ -179,6 +182,87 @@ final class EngineIntegrationTests: XCTestCase {
         p.standardOutput = FileHandle.nullDevice
         try? p.run(); p.waitUntilExit()
         return p.terminationStatus == 0
+    }
+
+    /// Embedded display end to end: QEMU serves the screen over a private VNC unix socket, the RFB client
+    /// receives real frames, and keys sent as physical scancodes reach the Alpine login prompt.
+    func testEmbeddedDisplayShowsGuestAndAcceptsKeys() async throws {
+        let isoPath = ProcessInfo.processInfo.environment["NEXVM_TEST_ISO"]
+            ?? "/path/to/tools/isos/alpine-virt-3.24.3-aarch64.iso"
+        guard let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil,
+              FileManager.default.fileExists(atPath: isoPath) else { throw XCTSkip("QEMU or Alpine ISO missing") }
+        let library = VMLibrary(root: root.appendingPathComponent("lib"))
+        let c = VMConfiguration(name: "alpine-vnc", guest: .linuxARM64, cpuCount: 2, memoryMiB: 1024,
+                                disks: [DiskConfiguration(relativePath: "disks/main.img", sizeGiB: 8, format: .raw, interface: .virtioBlk)],
+                                installMedia: InstallMedia(path: isoPath))
+        let bundle = try library.create(c)
+        try DiskImageCreator.createSparseRaw(in: bundle, relativePath: "disks/main.img", sizeGiB: 8)
+        let serial = bundle.logsURL.appendingPathComponent("serial.log")
+        let engine = QEMUEngine(installation: install, options: QEMUBuildOptions(serialLog: serial, embeddedDisplay: true))
+        try await engine.start(c, bundleURL: bundle.url)
+
+        let sock = await engine.displaySocket(for: c.id)
+        let socketPath = try XCTUnwrap(sock?.path)
+        let latest = FrameBox()
+        let client = try await RFBClient.connect(path: socketPath, timeout: 10, onFrame: { latest.set($0) })
+        defer { client.close() }
+        XCTAssertGreaterThan(client.framebufferSize.width, 0)
+
+        // Wait for the guest (not the firmware): the TianoCore logo at the centre is gone and console text is on screen.
+        func brightPixels(_ f: RFBFrame) -> Int {
+            let data = (f.image.dataProvider!.data! as Data)
+            var n = 0; var i = 0
+            while i + 3 < data.count { if data[i] > 150 && data[i + 1] > 150 && data[i + 2] > 150 { n += 1 }; i += 4 }
+            return n
+        }
+        // The serial console is only a clock: "login:" there means Linux is up and tty0 shows its own login prompt.
+        var shown = false
+        for _ in 0..<900 {   // up to 90 s
+            if ((try? String(contentsOf: serial, encoding: .utf8)) ?? "").contains("login:") { shown = true; break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        try await Task.sleep(for: .seconds(2))
+        let before = try XCTUnwrap(latest.value)
+        try Self.writePNG(before.image, to: root.appendingPathComponent("vnc-before.png"))
+        XCTAssertTrue(shown, "Linux never reached its login prompt")
+        XCTAssertTrue(client.extendedKeysAcknowledged, "QEMU did not acknowledge extended key events")
+
+        // Type "root" (macOS key codes r,o,o,t) the way the app does: press, hold ~80 ms, release.
+        try await Task.sleep(for: .seconds(2))
+        let baseline = brightPixels(try XCTUnwrap(latest.value))
+        for code: UInt16 in [0x0F, 0x1F, 0x1F, 0x11] {
+            XCTAssertTrue(client.sendKey(macKeyCode: code, down: true))
+            try await Task.sleep(for: .milliseconds(80))
+            XCTAssertTrue(client.sendKey(macKeyCode: code, down: false))
+            try await Task.sleep(for: .milliseconds(80))
+        }
+        try await Task.sleep(for: .seconds(1))
+        let after = try XCTUnwrap(latest.value)
+        try Self.writePNG(after.image, to: root.appendingPathComponent("vnc-after.png"))
+        XCTAssertGreaterThan(brightPixels(after), baseline + 30, "typed text did not reach the guest console (\(baseline) -> \(brightPixels(after)))")
+
+        // Keep the evidence next to the repo's build output for inspection.
+        let evidence = root.deletingLastPathComponent().appendingPathComponent("vnc-evidence")
+        try? FileManager.default.createDirectory(at: evidence, withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: evidence.appendingPathComponent("after.png"))
+        try? FileManager.default.copyItem(at: root.appendingPathComponent("vnc-after.png"), to: evidence.appendingPathComponent("after.png"))
+
+        try await engine.forceStop(vmID: c.id)
+        _ = await engine.waitUntilStopped(vmID: c.id, timeout: 10)
+        let leftover = await engine.displaySocket(for: c.id)
+        XCTAssertNil(leftover)
+    }
+
+    final class FrameBox: @unchecked Sendable {
+        private let lock = NSLock(); private var f: RFBFrame?
+        func set(_ x: RFBFrame) { lock.withLock { f = x } }
+        var value: RFBFrame? { lock.withLock { f } }
+    }
+
+    static func writePNG(_ image: CGImage, to url: URL) throws {
+        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else { throw XCTSkip("png") }
+        CGImageDestinationAddImage(dest, image, nil)
+        XCTAssertTrue(CGImageDestinationFinalize(dest))
     }
 
     func testStartFailsCleanlyWithoutFirmware() async throws {

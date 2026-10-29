@@ -11,6 +11,7 @@ public actor QEMUEngine: VirtualMachineEngine {
         let process: ManagedProcess
         let lock: VMLock
         let socketURL: URL
+        var vncSocket: URL?
         var tpm: ManagedProcess?
         var qmp: QMPClient?
         var state: VMRuntimeState
@@ -18,7 +19,7 @@ public actor QEMUEngine: VirtualMachineEngine {
     }
 
     private let installation: QEMUInstallation
-    private let options: QEMUBuildOptions
+    private var options: QEMUBuildOptions
     private let logger: StructuredLogger?
     private var sessions: [UUID: Session] = [:]
 
@@ -27,6 +28,12 @@ public actor QEMUEngine: VirtualMachineEngine {
         self.options = options
         self.logger = logger
     }
+
+    /// Chooses, for VMs started afterwards, between the embedded (VNC) display and QEMU's own window.
+    public func setEmbeddedDisplay(_ enabled: Bool) { options.embeddedDisplay = enabled }
+
+    /// Unix socket serving the VM's display over VNC, when it was started with the embedded display.
+    public func displaySocket(for vmID: UUID) -> URL? { sessions[vmID]?.vncSocket }
 
     public func state(of vmID: UUID) -> VMRuntimeState { sessions[vmID]?.state ?? .stopped }
 
@@ -58,6 +65,9 @@ public actor QEMUEngine: VirtualMachineEngine {
             let socket = socketDir.appendingPathComponent("qmp.sock")
             try? FileManager.default.removeItem(at: socket)  // stale socket of a previous run of this VM
 
+            let vncSocket: URL? = options.embeddedDisplay ? socketDir.appendingPathComponent("vnc.sock") : nil
+            if let vncSocket { try? FileManager.default.removeItem(at: vncSocket) }
+
             // Per-VM TPM state lives in the bundle so it survives reboots.
             var tpmProcess: ManagedProcess?
             var tpmSocket: URL?
@@ -82,9 +92,9 @@ public actor QEMUEngine: VirtualMachineEngine {
 
             let spec = try QEMUCommandBuilder(installation: installation).build(
                 configuration: c, bundle: bundle, firmware: QEMUFirmware(code: code, vars: vars),
-                qmpSocket: socket, tpmSocket: tpmSocket, options: options)
+                qmpSocket: socket, tpmSocket: tpmSocket, vncSocket: vncSocket, options: options)
             let process = ManagedProcess()
-            sessions[c.id] = Session(process: process, lock: lock, socketURL: socket, tpm: tpmProcess, qmp: nil, state: .starting)
+            sessions[c.id] = Session(process: process, lock: lock, socketURL: socket, vncSocket: vncSocket, tpm: tpmProcess, qmp: nil, state: .starting)
             await logger?.log(.info, "qemu", "launching VM", vmID: c.id)
             try process.launch(executable: spec.executable, arguments: spec.arguments,
                                logURL: bundle.logsURL.appendingPathComponent("qemu.log"))

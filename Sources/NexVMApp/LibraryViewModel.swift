@@ -75,6 +75,15 @@ final class LibraryViewModel {
 
     var runningItems: [VMItem] { items.filter { !state(of: $0).isIdle } }
 
+    static let embeddedDisplayKey = "display.embedded"
+    /// Show the guest display inside NexVM (VNC) instead of QEMU's own window. Default: on.
+    var embeddedDisplay: Bool { UserDefaults.standard.object(forKey: Self.embeddedDisplayKey) as? Bool ?? true }
+
+    /// Unix socket path serving this VM's display, once it has been started with the embedded display.
+    func displaySocketPath(for item: VMItem) async -> String? {
+        await engine?.displaySocket(for: item.id)?.path
+    }
+
     /// Why this VM cannot be started right now (missing tooling), or nil.
     func startBlocker(for guest: GuestOS) -> String? {
         if !qemuAvailable { return L("error.noqemu") }
@@ -197,6 +206,7 @@ final class LibraryViewModel {
         selection = item.id   // keeps the Virtual Machine menu pointed at the VM being started
         states[item.id] = .starting
         Task {
+            await engine.setEmbeddedDisplay(embeddedDisplay)
             do { try await engine.start(item.configuration, bundleURL: item.bundle.url) } catch {
                 errorMessage = "\(error)"
             }

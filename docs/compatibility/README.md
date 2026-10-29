@@ -5,14 +5,14 @@ A guest is **Tested** only after: real boot, install, reboot with data kept, and
 | Guest | Status | Evidence |
 |---|---|---|
 | Linux ARM64 | **Tested (Alpine 3.24.3 only)** — live ISO boots; installs to the NexVM disk; reboots from disk with data kept; ACPI shutdown works. Mouse unverified (text console); graphical desktop guest untested | see below |
-| Windows 11 ARM64 | Planned | none yet |
+| Windows 11 ARM64 | **Experimental** — official installer (build 26300) runs in NexVM up to image selection; install not completed, no reboot/shutdown tested | `windows-11-arm64.md` |
 | Windows App Mode | Planned (design only) | — |
 
 ## Phase 0 host facts (measured 2026-10-29)
 - Apple M4, 10 cores, 16 GiB RAM, macOS 27.0.1, Xcode 27.1, Swift 6.4, `kern.hv_support=1`.
 - QEMU 11.1.3 installed 2026-10-29 in a separate Homebrew prefix on the SSD (`/path/to/tools/homebrew`, Tier 3, built in ~3 min). Nothing installed in `/opt/homebrew`.
 - Verified: `qemu-system-aarch64 --version`, `-accel help` lists `hvf`, `edk2-aarch64-code.fd` present, and `-machine virt -accel hvf -cpu host -display none -S` starts and stays alive (no guest ran).
-- `swtpm` is NOT installed: Windows 11 TPM path unresolved.
+- `swtpm` 0.10.2 installed in the same SSD prefix (see `windows-11-arm64.md`).
 
 ## Integration evidence (2026-10-29, `EngineIntegrationTests`, real QEMU 11.1.3 + HVF)
 - `QEMUEngine` starts a VM with no OS media, connects QMP, reports `running`; UEFI (edk2) banner appears on the serial console, proving firmware executed under HVF.
@@ -38,3 +38,7 @@ Library cards, empty state, 4-step wizard with a real ISO, VM window, Settings (
 
 ## Unit-tested (no guest involved)
 QEMU argument construction, QMP parsing, process lifecycle (SIGTERM→SIGKILL on own pid), VM bundle persistence, path validation, resource limits. These do **not** prove any guest boots.
+
+## Embedded display evidence (2026-10-29)
+- `testEmbeddedDisplayShowsGuestAndAcceptsKeys` (real QEMU + RFB client): VNC framebuffer 1280×800 received; four scancode key events typed `root` at the Alpine login (`localhost login: root` visible in the captured frame).
+- App: VM window shows the guest display, mouse and keyboard work in the Windows installer, Full Screen toggles. Ctrl-Alt-Del button not exercised yet.

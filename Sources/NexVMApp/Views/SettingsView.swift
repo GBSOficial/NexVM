@@ -105,8 +105,11 @@ private struct NetworkSettings: View {
 
 private struct AdvancedSettings: View {
     @Bindable var model: LibraryViewModel
+    @AppStorage(LibraryViewModel.embeddedDisplayKey) private var embeddedDisplay = true
     var body: some View {
         Form {
+            Toggle(L("settings.display.embedded"), isOn: $embeddedDisplay)
+            Text(L("settings.display.note")).font(.footnote).foregroundStyle(.secondary)
             LabeledContent(L("settings.logfile")) {
                 Text(model.logURL.path).textSelection(.enabled).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
             }
