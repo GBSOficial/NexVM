@@ -1,0 +1,12 @@
+NexVM — third-party component inventory
+
+Linked into NexVM: none (Swift standard library and Apple system frameworks only).
+
+Executed as a separate, user-installed process (not bundled, not linked):
+- QEMU (qemu-system-aarch64, qemu-img) — GPL-2.0-only per Homebrew metadata; https://www.qemu.org/
+  Obtain separately (e.g. `brew install qemu`). See docs/decisions/0003-qemu-external-process-licensing.md.
+
+Never redistributed by this project: Windows ISOs, Windows keys, virtio-win drivers, proprietary firmware.
+
+If any component is bundled in the future, add its name, version, license, source offer and
+attribution here before release.

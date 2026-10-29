@@ -1,0 +1,99 @@
+import Foundation
+import NexVMCore
+import NexVMStorage
+
+public struct QEMULaunchSpec: Equatable, Sendable {
+    public var executable: URL
+    /// Structured argv. Never joined into a shell string.
+    public var arguments: [String]
+}
+
+public struct QEMUFirmware: Equatable, Sendable {
+    /// Read-only AArch64 UEFI code (edk2-aarch64-code.fd).
+    public var code: URL
+    /// Per-VM writable NVRAM copy (vars). Must live inside the VM bundle.
+    public var vars: URL
+    public init(code: URL, vars: URL) { self.code = code; self.vars = vars }
+}
+
+public enum QEMUBuildError: Error, Equatable, Sendable {
+    case unsupportedArchitecture
+    case unsupportedBackend
+    case noDisks
+}
+
+public enum QEMUOption {
+    /// QEMU treats `,` as an option separator; a literal comma must be doubled.
+    public static func escape(_ value: String) -> String { value.replacingOccurrences(of: ",", with: ",,") }
+}
+
+public struct QEMUCommandBuilder: Sendable {
+    public var installation: QEMUInstallation
+
+    public init(installation: QEMUInstallation) { self.installation = installation }
+
+    /// - Parameters:
+    ///   - qmpSocket: unix socket path for QMP (host-local, no TCP listener).
+    ///   - tpmSocket: swtpm control socket; pass nil when no TPM emulator is available.
+    public func build(
+        configuration c: VMConfiguration,
+        bundle: VMBundle,
+        firmware: QEMUFirmware,
+        qmpSocket: URL,
+        tpmSocket: URL? = nil
+    ) throws -> QEMULaunchSpec {
+        guard c.architecture == .arm64 else { throw QEMUBuildError.unsupportedArchitecture }
+        guard c.backend == .qemu else { throw QEMUBuildError.unsupportedBackend }
+        guard !c.disks.isEmpty else { throw QEMUBuildError.noDisks }
+        let e = QEMUOption.escape
+
+        var a: [String] = []
+        a += ["-name", "\(e(c.name)),process=nexvm-\(c.id.uuidString.prefix(8))"]
+        a += ["-nodefaults", "-no-user-config"]
+        a += ["-machine", "virt", "-accel", "hvf", "-cpu", "host"]
+        a += ["-smp", String(c.cpuCount), "-m", "\(c.memoryMiB)M"]
+
+        a += ["-drive", "if=pflash,format=raw,unit=0,readonly=on,file=\(e(firmware.code.path))"]
+        a += ["-drive", "if=pflash,format=raw,unit=1,file=\(e(firmware.vars.path))"]
+
+        // Display and input. ramfb is what Windows/Linux UEFI can drive without guest drivers.
+        a += ["-device", "ramfb", "-device", "qemu-xhci", "-device", "usb-kbd", "-device", "usb-tablet"]
+
+        for (i, disk) in c.disks.enumerated() {
+            let path = try PathValidator.resolve(disk.relativePath, under: bundle.url)
+            let id = "disk\(i)"
+            a += ["-drive", "if=none,id=\(id),format=\(disk.format.rawValue),file=\(e(path.path))"]
+            switch disk.interface {
+            case .virtioBlk:
+                a += ["-device", "virtio-blk-pci,drive=\(id)"]
+            case .nvme:
+                a += ["-device", "nvme,drive=\(id),serial=nexvm\(i)"]
+            }
+        }
+
+        if let media = c.installMedia {
+            a += ["-drive", "if=none,id=cd0,media=cdrom,readonly=on,file=\(e(media.path))"]
+            a += ["-device", "usb-storage,drive=cd0,bootindex=0"]
+        }
+
+        switch c.network.mode {
+        case .userNAT:
+            // No hostfwd: nothing is exposed on host interfaces.
+            a += ["-netdev", "user,id=net0"]
+            // Windows has no inbox virtio-net driver; e1000e is inbox. Linux uses virtio.
+            let nic = c.guest == .windows11ARM64 ? "e1000e" : "virtio-net-pci"
+            a += ["-device", "\(nic),netdev=net0"]
+        }
+
+        if let tpm = tpmSocket {
+            a += ["-chardev", "socket,id=chrtpm,path=\(e(tpm.path))"]
+            a += ["-tpmdev", "emulator,id=tpm0,chardev=chrtpm"]
+            a += ["-device", "tpm-tis-device,tpmdev=tpm0"]
+        }
+
+        a += ["-qmp", "unix:\(e(qmpSocket.path)),server=on,wait=off"]
+        a += ["-display", "cocoa"]
+
+        return QEMULaunchSpec(executable: installation.system, arguments: a)
+    }
+}

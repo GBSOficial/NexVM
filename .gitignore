@@ -1,0 +1,19 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+xcuserdata/
+DerivedData/
+.DS_Store
+# Never commit VM data, media, firmware, secrets
+*.nexvm/
+*.iso
+*.img
+*.qcow2
+*.vdi
+*.vmdk
+*.fd
+*.p12
+*.mobileprovision
+*.env
+.env*

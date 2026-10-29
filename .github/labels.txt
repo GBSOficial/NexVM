@@ -1,0 +1,9 @@
+bug
+enhancement
+documentation
+good first issue
+help wanted
+windows-arm
+linux-arm
+performance
+security
