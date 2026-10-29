@@ -26,7 +26,7 @@ struct VMWindowView: View {
     private func content(_ item: VMItem) -> some View {
         let c = item.configuration
         let state = model.state(of: item)
-        let cmd = LifecycleCommands(state: state, startBlocked: model.startBlocker(for: c.guest) != nil)
+        let cmd = LifecycleCommands(state: state, startBlocked: model.startBlocker(for: c) != nil)
         let showDisplay = model.embeddedDisplay && isLive(state)
 
         return Group {
@@ -51,7 +51,7 @@ struct VMWindowView: View {
                         .help(L("action.inspector"))
                 }
                 Button { model.start(item) } label: { Label(L("action.run"), systemImage: "play.fill") }
-                    .disabled(!cmd.canStart).help(model.startBlocker(for: c.guest) ?? L("help.start"))
+                    .disabled(!cmd.canStart).help(model.startBlocker(for: c) ?? L("help.start"))
                 Button { model.requestShutdown(item) } label: { Label(L("action.shutdown"), systemImage: "power") }
                     .disabled(!cmd.canShutdown).help(L("help.shutdown"))
                 Button { model.restart(item) } label: { Label(L("action.restart"), systemImage: "arrow.clockwise") }
@@ -122,6 +122,13 @@ struct VMWindowView: View {
                         LabeledContent(L("field.memory"), value: formatMemory(c.memoryMiB))
                         LabeledContent(L("field.disk"), value: "\(c.disks.first?.sizeGiB ?? 0) GB")
                         LabeledContent(L("field.network"), value: L("network.nat"))
+                        Picker(L("field.firmware"), selection: Binding(
+                            get: { c.effectiveFirmware }, set: { model.setFirmware($0, for: item) })) {
+                            Text(L("firmware.standard")).tag(FirmwareKind.standard)
+                            Text(L("firmware.secureboot")).tag(FirmwareKind.secureBoot)
+                                .disabled(!model.secureBootAvailable)
+                        }
+                        .disabled(!state.isIdle).help(L("help.firmware"))
                         LabeledContent(L("field.iso")) {
                             HStack {
                                 Text(c.installMedia.map { URL(fileURLWithPath: $0.path).lastPathComponent } ?? L("vmwindow.iso.none"))

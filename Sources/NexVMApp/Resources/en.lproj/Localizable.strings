@@ -64,6 +64,12 @@
 "error.title" = "Something went wrong";
 "error.noqemu" = "QEMU was not found. Install it (for example with Homebrew) so NexVM can start VMs.";
 "error.notpm" = "Windows 11 needs a TPM 2.0 emulator (swtpm), which was not found next to QEMU. Install swtpm to run Windows 11.";
+"field.firmware" = "UEFI firmware";
+"firmware.standard" = "Standard";
+"firmware.secureboot" = "Secure Boot";
+"help.firmware" = "Windows 11 Setup requires the Secure Boot firmware. Each firmware keeps its own settings (NVRAM), so you can switch back. Only while the VM is stopped.";
+"error.nosecureboot" = "This VM uses the Secure Boot firmware, which was not found. Put AAVMF_CODE.secboot.fd and AAVMF_VARS.ms.fd (from Debian's qemu-efi-aarch64 package) in ~/Library/Application Support/NexVM/Firmware, or set NEXVM_FIRMWARE_DIR.";
+"wizard.sb.missing" = "Windows 11 Setup refuses PCs without Secure Boot, and the Secure Boot UEFI firmware was not found, so the installer will stop at the requirements check.";
 "quit.title" = "Virtual machines are still running";
 "quit.message" = "Quitting NexVM will force-stop %ld running VM(s). Unsaved data in the guest may be lost.";
 "quit.confirm" = "Force Stop and Quit";

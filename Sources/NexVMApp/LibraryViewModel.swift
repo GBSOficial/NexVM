@@ -20,6 +20,7 @@ struct NewVMRequest {
     var memoryMiB: Int
     var diskGiB: Int
     var isoPath: String?
+    var firmware: FirmwareKind = .standard
 }
 
 /// UI-facing state. The QEMU lifecycle lives in `QEMUEngine` (an actor); this class only
@@ -41,6 +42,7 @@ final class LibraryViewModel {
     let qemuPath: String?
     let qemuAvailable: Bool
     let swtpmAvailable: Bool
+    let secureBootAvailable: Bool
     private let engine: QEMUEngine?
     private let library: VMLibrary
     private let logger: StructuredLogger
@@ -57,11 +59,13 @@ final class LibraryViewModel {
             self.qemuAvailable = true
             self.qemuPath = install.system.path
             self.swtpmAvailable = install.swtpm != nil
+            self.secureBootAvailable = install.secureBootFirmware != nil
         } else {
             self.engine = nil
             self.qemuAvailable = false
             self.qemuPath = nil
             self.swtpmAvailable = false
+            self.secureBootAvailable = false
         }
         reload()
         startPolling()
@@ -85,9 +89,10 @@ final class LibraryViewModel {
     }
 
     /// Why this VM cannot be started right now (missing tooling), or nil.
-    func startBlocker(for guest: GuestOS) -> String? {
+    func startBlocker(for config: VMConfiguration) -> String? {
         if !qemuAvailable { return L("error.noqemu") }
-        if guest == .windows11ARM64 && !swtpmAvailable { return L("error.notpm") }
+        if config.guest == .windows11ARM64 && !swtpmAvailable { return L("error.notpm") }
+        if config.effectiveFirmware == .secureBoot && !secureBootAvailable { return L("error.nosecureboot") }
         return nil
     }
 
@@ -131,7 +136,7 @@ final class LibraryViewModel {
         let config = VMConfiguration(
             name: r.name.trimmingCharacters(in: .whitespacesAndNewlines), guest: r.guest,
             cpuCount: r.cpuCount, memoryMiB: r.memoryMiB, disks: [disk],
-            installMedia: r.isoPath.map(InstallMedia.init(path:)))
+            installMedia: r.isoPath.map(InstallMedia.init(path:)), firmware: r.firmware == .standard ? nil : r.firmware)
 
         refreshHost()
         let issues = ConfigurationValidator.validate(config, host: host)
@@ -184,6 +189,14 @@ final class LibraryViewModel {
         } catch { errorMessage = "\(error)" }
     }
 
+    /// Changes the UEFI build of a stopped VM. Each kind keeps its own NVRAM file, so switching back and forth is safe.
+    func setFirmware(_ kind: FirmwareKind, for item: VMItem) {
+        guard state(of: item).isIdle, item.configuration.effectiveFirmware != kind else { return }
+        var config = item.configuration
+        config.firmware = kind == .standard ? nil : kind
+        do { try library.save(config, in: item.bundle); reload() } catch { errorMessage = "\(error)" }
+    }
+
     func revealInFinder(_ item: VMItem) { NSWorkspace.shared.activateFileViewerSelecting([item.bundle.url]) }
     func revealLibrary() {
         try? FileManager.default.createDirectory(at: libraryRoot, withIntermediateDirectories: true)
@@ -202,7 +215,7 @@ final class LibraryViewModel {
     func start(_ item: VMItem) {
         guard let engine else { errorMessage = L("error.noqemu"); return }
         guard state(of: item).isIdle else { return }
-        if let blocker = startBlocker(for: item.configuration.guest) { errorMessage = blocker; return }
+        if let blocker = startBlocker(for: item.configuration) { errorMessage = blocker; return }
         selection = item.id   // keeps the Virtual Machine menu pointed at the VM being started
         states[item.id] = .starting
         Task {

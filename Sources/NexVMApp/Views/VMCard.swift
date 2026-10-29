@@ -10,7 +10,7 @@ struct VMCard: View {
     var body: some View {
         let c = item.configuration
         let state = model.state(of: item)
-        let cmd = LifecycleCommands(state: state, startBlocked: model.startBlocker(for: c.guest) != nil)
+        let cmd = LifecycleCommands(state: state, startBlocked: model.startBlocker(for: c) != nil)
         let selected = model.selection == item.id
 
         VStack(alignment: .leading, spacing: 12) {
@@ -71,7 +71,7 @@ struct VMCard: View {
             } label: { Label(L("action.start"), systemImage: "play.fill") }
                 .buttonStyle(.borderedProminent)
                 .disabled(!cmd.canStart)
-                .help(model.startBlocker(for: item.configuration.guest) ?? L("help.start"))
+                .help(model.startBlocker(for: item.configuration) ?? L("help.start"))
         }
     }
 }
@@ -82,7 +82,7 @@ struct VMContextMenu: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        let cmd = LifecycleCommands(state: model.state(of: item), startBlocked: model.startBlocker(for: item.configuration.guest) != nil)
+        let cmd = LifecycleCommands(state: model.state(of: item), startBlocked: model.startBlocker(for: item.configuration) != nil)
         Button(L("action.start"), systemImage: "play.fill") {
             model.start(item)
             if model.embeddedDisplay { openWindow(value: item.id) }

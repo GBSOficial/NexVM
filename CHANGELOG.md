@@ -1,5 +1,6 @@
 # Changelog
 ## Unreleased
+- Per-VM UEFI firmware choice (Standard / Secure Boot) with separate NVRAM per kind; Windows wizard defaults to Secure Boot when a Secure Boot build is installed; start blocked with a clear message when missing. Windows Setup passes the Secure Boot check with edk2 2024.02 (firmware not bundled).
 - Embedded VM display: QEMU serves VNC on a private unix socket; new `NexVMDisplay` RFB client; display, keyboard (physical scancodes), absolute mouse and scroll inside the VM window; Full Screen, Ctrl-Alt-Del, details inspector; Settings → Advanced to use QEMU's window instead.
 - Windows 11 ARM64 installer boots and runs in NexVM (experimental).
 - TPM: `tpm-tis-device,ppi=off` (HVF rejects the PPI region); swtpm lifecycle integration test.

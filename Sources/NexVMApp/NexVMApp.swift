@@ -83,7 +83,7 @@ struct NexVMCommands: Commands {
         }
         CommandMenu(L("menu.vm")) {
             let item = model.item(model.selection)
-            let cmd = LifecycleCommands(state: item.map { model.state(of: $0) } ?? .stopped, startBlocked: model.startBlocker(for: item?.configuration.guest ?? .linuxARM64) != nil)
+            let cmd = LifecycleCommands(state: item.map { model.state(of: $0) } ?? .stopped, startBlocked: item.map { model.startBlocker(for: $0.configuration) != nil } ?? true)
             Button(L("action.run")) {
                 if let item {
                     model.start(item)

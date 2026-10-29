@@ -11,7 +11,8 @@
 ## Evidence (2026-10-29, manual, in the NexVM embedded display)
 - UEFI → boot from the ISO works when selected in the firmware Boot Manager. Automatic boot dropped to the UEFI Shell in two attempts because Windows' "Press any key to boot from CD" window passed before a key was sent (a keypress at the right moment is required; NexVM does not automate it yet).
 - Windows Setup UI renders correctly in the embedded display (1280×800 framebuffer), mouse clicks (Avançar, checkbox, link) and keyboard (firmware menus) work, and the screen can go full screen.
-- Setup got past its hardware checks to the image-selection page with `swtpm` TPM 2.0 attached and no Secure Boot keys; which checks the build performs was not examined.
+- With the stock firmware (no Secure Boot) Setup stops with "O PC deve ser compatível com a Inicialização Segura" (Secure Boot capable required). No bypass is implemented.
+- With a Secure Boot UEFI build (Ubuntu 24.04 `qemu-efi-aarch64` 2024.02-2ubuntu0.10: `AAVMF_CODE.secboot.fd` + `AAVMF_VARS.ms.fd`, Microsoft keys enrolled) the same ISO passes that check and reaches the "install option" page (language → keyboard → install option). Verified manually 2026-10-29. Installation itself not done yet.
 - Not done on purpose: product key, edition, EULA acceptance (user decisions).
 
 ## Requirements (user side)
@@ -29,7 +30,7 @@
 | Item | Why it matters |
 |---|---|
 | Windows Setup accepts the swtpm TPM 2.0 | Win11 requirement check |
-| Secure Boot | The stock `edk2-aarch64-code.fd` has no enrolled Secure Boot keys; whether Setup on ARM64 requires "Secure Boot capable" is unconfirmed. No bypass will be implemented. |
+| Secure Boot firmware | Required by Setup. NexVM does not ship it: place `AAVMF_CODE.secboot.fd` + `AAVMF_VARS.ms.fd` in `$NEXVM_FIRMWARE_DIR`, `<qemu prefix>/share/nexvm/firmware` or `~/Library/Application Support/NexVM/Firmware`. Only edk2 2024.02 (Ubuntu) was found to run on QEMU 11.1.3 + HVF. Debian 2025.02 and Fedora 2026 builds hang at boot under HVF (work under TCG; cause not proven). Unsigned media (e.g. Alpine ISO) is rejected under Secure Boot: use "Standard" firmware for Linux. No bypass will be implemented. |
 | `e1000e` has an inbox Windows ARM64 driver | Not yet reached; network is needed for OOBE on some editions |
 | `ramfb` resolution/performance | Fixed framebuffer, no accelerated graphics; Windows ARM guest drivers (e.g. virtio-gpu) are not redistributable by NexVM |
 | NVMe boot, reboot with persisted data | Needs a real install |

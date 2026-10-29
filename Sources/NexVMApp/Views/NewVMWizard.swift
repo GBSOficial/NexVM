@@ -30,12 +30,14 @@ struct NewVMWizard: View {
     @State private var creating = false
     @FocusState private var nameFocused: Bool
 
+    /// Windows 11 Setup requires Secure Boot; use the Secure Boot UEFI when it is installed.
+    private var firmware: FirmwareKind { guest == .windows11ARM64 && model.secureBootAvailable ? .secureBoot : .standard }
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var draftConfig: VMConfiguration {
         VMConfiguration(name: trimmedName, guest: guest, cpuCount: cpu, memoryMiB: mem,
                         disks: [DiskConfiguration(relativePath: "disks/main.img", sizeGiB: disk, format: .raw,
                                                   interface: guest == .windows11ARM64 ? .nvme : .virtioBlk)],
-                        installMedia: isoPath.map(InstallMedia.init(path:)))
+                        installMedia: isoPath.map(InstallMedia.init(path:)), firmware: firmware == .standard ? nil : firmware)
     }
 
     // Per-step validation. Returns a blocking message, or nil when the step is valid.
@@ -128,6 +130,9 @@ struct NewVMWizard: View {
             }
             if let p = isoProblem, isoPath != nil { problem(p) }
             if let w = isoWarning { Label(w, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(.orange) }
+            if guest == .windows11ARM64 && !model.secureBootAvailable {
+                Label(L("wizard.sb.missing"), systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(.orange)
+            }
             if guest == .windows11ARM64 && !model.swtpmAvailable {
                 Label(L("error.notpm"), systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(.orange)
             }
@@ -181,6 +186,7 @@ struct NewVMWizard: View {
                 LabeledContent(L("field.memory"), value: formatMemory(mem))
                 LabeledContent(L("field.disk"), value: "\(disk) GB")
                 LabeledContent(L("field.network"), value: L("network.nat"))
+                LabeledContent(L("field.firmware"), value: L(firmware == .secureBoot ? "firmware.secureboot" : "firmware.standard"))
             }
             .formStyle(.columns)
             ForEach(Array(reviewIssues.enumerated()), id: \.offset) { _, i in problem(i.description) }
@@ -217,7 +223,7 @@ struct NewVMWizard: View {
 
     private func create() {
         creating = true
-        let ok = model.create(NewVMRequest(name: trimmedName, guest: guest, cpuCount: cpu, memoryMiB: mem, diskGiB: disk, isoPath: isoPath))
+        let ok = model.create(NewVMRequest(name: trimmedName, guest: guest, cpuCount: cpu, memoryMiB: mem, diskGiB: disk, isoPath: isoPath, firmware: firmware))
         creating = false
         if ok { dismiss() }
     }

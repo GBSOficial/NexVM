@@ -65,4 +65,19 @@ final class ConfigurationTests: XCTestCase {
         XCTAssertGreaterThan(h.physicalMemoryMiB, 0)
         XCTAssertGreaterThan(h.cpuCores, 0)
     }
+
+    func testConfigWithoutFirmwareKeyStillLoadsAsStandard() throws {
+        var c = config()
+        let data = try NexVMJSON.encoder().encode(c)
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertNil(obj["firmware"])                       // nil is not written
+        obj.removeValue(forKey: "firmware")
+        let old = try JSONSerialization.data(withJSONObject: obj)
+        let loaded = try NexVMJSON.decoder().decode(VMConfiguration.self, from: old)
+        XCTAssertEqual(loaded.effectiveFirmware, .standard)
+        c.firmware = .secureBoot
+        let back = try NexVMJSON.decoder().decode(VMConfiguration.self, from: NexVMJSON.encoder().encode(c))
+        XCTAssertEqual(back.effectiveFirmware, .secureBoot)
+        XCTAssertEqual(back.schemaVersion, 1)               // additive field: no schema bump needed
+    }
 }

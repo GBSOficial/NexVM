@@ -23,6 +23,13 @@ public enum DiskInterface: String, Codable, Sendable {
     case nvme
 }
 
+/// Which UEFI build a VM boots with. The NVRAM variable store is tied to the build, so each kind
+/// keeps its own variable file in the bundle.
+public enum FirmwareKind: String, Codable, Sendable, CaseIterable {
+    case standard      // QEMU's stock edk2 (no Secure Boot on aarch64)
+    case secureBoot    // edk2 with Secure Boot and Microsoft keys enrolled (needed by Windows 11 Setup)
+}
+
 public enum NetworkMode: String, Codable, Sendable {
     /// User-mode (SLIRP) NAT. No host ports are opened.
     case userNAT
@@ -70,6 +77,8 @@ public struct VMConfiguration: Codable, Equatable, Sendable, Identifiable {
     public var disks: [DiskConfiguration]
     public var network: NetworkConfiguration
     public var installMedia: InstallMedia?
+    /// Optional so configs written before this field existed still load (nil = standard).
+    public var firmware: FirmwareKind?
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -82,6 +91,7 @@ public struct VMConfiguration: Codable, Equatable, Sendable, Identifiable {
         disks: [DiskConfiguration],
         network: NetworkConfiguration = NetworkConfiguration(),
         installMedia: InstallMedia? = nil,
+        firmware: FirmwareKind? = nil,
         now: Date = Date()
     ) {
         self.schemaVersion = Self.currentSchemaVersion
@@ -95,11 +105,16 @@ public struct VMConfiguration: Codable, Equatable, Sendable, Identifiable {
         self.disks = disks
         self.network = network
         self.installMedia = installMedia
+        self.firmware = firmware
         // JSON stores whole seconds (ISO 8601); keep the in-memory value identical to the stored one.
         let whole = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down))
         self.createdAt = whole
         self.updatedAt = whole
     }
+}
+
+extension VMConfiguration {
+    public var effectiveFirmware: FirmwareKind { firmware ?? .standard }
 }
 
 public enum NexVMJSON {

@@ -41,8 +41,19 @@ public actor QEMUEngine: VirtualMachineEngine {
         if let s = sessions[c.id], s.state != .stopped {
             if case .error = s.state {} else { throw EngineError.alreadyRunning(c.id) }
         }
-        guard let code = installation.firmwareCode, let template = installation.firmwareVarsTemplate else {
-            throw EngineError.backendUnavailable("UEFI firmware (edk2) not found next to QEMU")
+        // Pick the UEFI build this VM is configured for; each kind has its own NVRAM file.
+        let code: URL, template: URL, varsName: String
+        switch c.effectiveFirmware {
+        case .standard:
+            guard let fc = installation.firmwareCode, let ft = installation.firmwareVarsTemplate else {
+                throw EngineError.backendUnavailable("UEFI firmware (edk2) not found next to QEMU")
+            }
+            (code, template, varsName) = (fc, ft, "vars.fd")
+        case .secureBoot:
+            guard let sb = installation.secureBootFirmware else {
+                throw EngineError.backendUnavailable("UEFI firmware with Secure Boot not found (AAVMF_CODE.secboot.fd + AAVMF_VARS.ms.fd)")
+            }
+            (code, template, varsName) = (sb.code, sb.varsTemplate, "vars-secureboot.fd")
         }
         // Windows 11 requires a TPM 2.0: fail clearly instead of starting a VM that cannot install.
         if c.guest == .windows11ARM64 && installation.swtpm == nil {
@@ -54,7 +65,7 @@ public actor QEMUEngine: VirtualMachineEngine {
 
         do {
             // Per-VM writable NVRAM, created once from the template and kept across boots.
-            let vars = try PathValidator.resolve("metadata/vars.fd", under: bundleURL)
+            let vars = try PathValidator.resolve("metadata/\(varsName)", under: bundleURL)
             if !FileManager.default.fileExists(atPath: vars.path) {
                 try FileManager.default.copyItem(at: template, to: vars)
             }

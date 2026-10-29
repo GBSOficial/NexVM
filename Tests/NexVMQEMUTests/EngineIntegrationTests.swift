@@ -265,6 +265,34 @@ final class EngineIntegrationTests: XCTestCase {
         XCTAssertTrue(CGImageDestinationFinalize(dest))
     }
 
+    /// A Secure Boot VM must boot Debian's AAVMF build (not QEMU's stock one) and keep its NVRAM in its own file.
+    func testSecureBootVMUsesAAVMFBuildAndSeparateNVRAM() async throws {
+        guard let install = QEMUBinaryLocator.locate(), install.secureBootFirmware != nil, install.swtpm != nil
+        else { throw XCTSkip("QEMU, swtpm or Secure Boot firmware missing") }
+        let library = VMLibrary(root: root.appendingPathComponent("lib"))
+        let c = VMConfiguration(name: "win-sb", guest: .windows11ARM64, cpuCount: 2, memoryMiB: 2048,
+                                disks: [DiskConfiguration(relativePath: "disks/main.img", sizeGiB: 8, format: .raw, interface: .nvme)],
+                                firmware: .secureBoot)
+        let bundle = try library.create(c)
+        try DiskImageCreator.createSparseRaw(in: bundle, relativePath: "disks/main.img", sizeGiB: 8)
+        let serial = bundle.logsURL.appendingPathComponent("serial.log")
+        let engine = QEMUEngine(installation: install, options: QEMUBuildOptions(headless: true, serialLog: serial))
+        try await engine.start(c, bundleURL: bundle.url)
+        var out = ""
+        for _ in 0..<100 {
+            out = (try? String(contentsOf: serial, encoding: .utf8)) ?? ""
+            if out.contains("UEFI firmware (version") { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTAssertTrue(out.contains("UEFI firmware (version"), "unexpected firmware banner: \(out.prefix(120))")
+        XCTAssertFalse(out.contains("edk2-stable202408"), "stock firmware banner: \(out.prefix(120))")
+        let meta = bundle.metadataURL
+        XCTAssertTrue(FileManager.default.fileExists(atPath: meta.appendingPathComponent("vars-secureboot.fd").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: meta.appendingPathComponent("vars.fd").path))
+        try await engine.forceStop(vmID: c.id)
+        _ = await engine.waitUntilStopped(vmID: c.id, timeout: 10)
+    }
+
     func testStartFailsCleanlyWithoutFirmware() async throws {
         let engine = QEMUEngine(installation: QEMUInstallation(system: URL(fileURLWithPath: "/nonexistent/qemu")))
         let c = VMConfiguration(name: "x", guest: .linuxARM64, cpuCount: 1, memoryMiB: 1024,

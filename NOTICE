@@ -8,5 +8,8 @@ Executed as a separate, user-installed process (not bundled, not linked):
 
 Never redistributed by this project: Windows ISOs, Windows keys, virtio-win drivers, proprietary firmware.
 
+Secure Boot UEFI (edk2/AAVMF, BSD-2-Clause-Patent, includes OpenSSL under Apache-2.0) is read from a user-installed
+location and not bundled. Tested with Ubuntu `qemu-efi-aarch64` 2024.02-2ubuntu0.10.
+
 If any component is bundled in the future, add its name, version, license, source offer and
 attribution here before release.

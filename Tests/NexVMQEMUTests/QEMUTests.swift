@@ -246,4 +246,32 @@ final class SwtpmTests: XCTestCase {
         let found = QEMUBinaryLocator.locate(searchDirectories: [bin.path])
         XCTAssertNotNil(found?.swtpm)
     }
+
+    func testLocatorFindsSecureBootFirmwareDirectlyOrInAAVMFSubfolder() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("nexvm-sb-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let sub = tmp.appendingPathComponent("AAVMF")
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+        XCTAssertNil(QEMUBinaryLocator.locateSecureBootFirmware(in: [tmp.path]))
+        try Data().write(to: sub.appendingPathComponent("AAVMF_CODE.secboot.fd"))
+        XCTAssertNil(QEMUBinaryLocator.locateSecureBootFirmware(in: [tmp.path]), "needs both files")
+        try Data().write(to: sub.appendingPathComponent("AAVMF_VARS.ms.fd"))
+        let fw = QEMUBinaryLocator.locateSecureBootFirmware(in: ["/nonexistent", tmp.path])
+        XCTAssertEqual(fw?.code.lastPathComponent, "AAVMF_CODE.secboot.fd")
+        XCTAssertEqual(fw?.varsTemplate.lastPathComponent, "AAVMF_VARS.ms.fd")
+    }
+
+    func testSecureBootVMFailsClearlyWithoutThatFirmware() async throws {
+        let engine = QEMUEngine(installation: QEMUInstallation(
+            system: URL(fileURLWithPath: "/nonexistent/qemu"),
+            firmwareCode: URL(fileURLWithPath: "/x/code.fd"), firmwareVarsTemplate: URL(fileURLWithPath: "/x/vars.fd"),
+            swtpm: URL(fileURLWithPath: "/x/swtpm")))
+        let c = VMConfiguration(name: "w", guest: .windows11ARM64, cpuCount: 2, memoryMiB: 4096,
+                                disks: [DiskConfiguration(relativePath: "disks/a.img", sizeGiB: 64, format: .raw, interface: .nvme)],
+                                firmware: .secureBoot)
+        do { try await engine.start(c, bundleURL: URL(fileURLWithPath: "/nonexistent/b.nexvm")); XCTFail("must fail") } catch {
+            guard case .backendUnavailable(let m) = error as? EngineError else { return XCTFail("\(error)") }
+            XCTAssertTrue(m.contains("Secure Boot"))
+        }
+    }
 }
