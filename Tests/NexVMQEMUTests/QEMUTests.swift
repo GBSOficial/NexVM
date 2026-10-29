@@ -63,6 +63,15 @@ final class QEMUCommandBuilderTests: XCTestCase {
         XCTAssertTrue(withTPM.contains("tpm-tis-device,tpmdev=tpm0,ppi=off"))
     }
 
+    func testGUIDisplayScalesWithWindowAndHeadlessHasNone() throws {
+        let c = config(guest: .linuxARM64, iface: .virtioBlk)
+        let gui = try build(c)
+        XCTAssertTrue(zip(gui, gui.dropFirst()).contains { $0 == "-display" && $1.hasPrefix("cocoa") && $1.contains("zoom-to-fit=on") })
+        let headless = try QEMUCommandBuilder(installation: install).build(
+            configuration: c, bundle: bundle, firmware: fw, qmpSocket: qmp, options: QEMUBuildOptions(headless: true)).arguments
+        XCTAssertTrue(zip(headless, headless.dropFirst()).contains { $0 == "-display" && $1 == "none" })
+    }
+
     func testQMPIsUnixSocketOnly() throws {
         let a = try build(config(guest: .linuxARM64, iface: .virtioBlk))
         XCTAssertTrue(a.contains("unix:/tmp/nexvm-fake/qmp.sock,server=on,wait=off"))

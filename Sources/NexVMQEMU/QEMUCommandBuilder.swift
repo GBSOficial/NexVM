@@ -107,7 +107,8 @@ public struct QEMUCommandBuilder: Sendable {
 
         a += ["-qmp", "unix:\(e(qmpSocket.path)),server=on,wait=off"]
         if let log = options.serialLog { a += ["-serial", "file:\(e(log.path))"] }
-        a += ["-display", options.headless ? "none" : "cocoa"]
+        // zoom-to-fit: the guest image scales with the window, so the (often small) guest framebuffer can be enlarged by resizing it.
+        a += ["-display", options.headless ? "none" : "cocoa,zoom-to-fit=on,zoom-interpolation=on"]
 
         return QEMULaunchSpec(executable: installation.system, arguments: a)
     }
