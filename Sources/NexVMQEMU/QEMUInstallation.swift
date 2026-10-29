@@ -13,7 +13,11 @@ public struct QEMUInstallation: Equatable, Sendable {
 }
 
 public enum QEMUBinaryLocator {
-    public static let defaultSearchDirectories = ["/opt/homebrew/bin", "/usr/local/bin"]
+    public static let defaultSearchDirectories = [
+        "/path/to/tools/homebrew/bin",
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+    ]
 
     /// Looks for an existing QEMU install. Never installs or modifies anything.
     /// `explicit` (e.g. a user preference) wins over the search directories.
