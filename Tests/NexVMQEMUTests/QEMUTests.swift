@@ -37,14 +37,14 @@ final class QEMUCommandBuilderTests: XCTestCase {
 
     func testCommasInUserValuesAreEscapedAndNeverSplitArguments() throws {
         let a = try build(config(guest: .linuxARM64, name: "a,b", iface: .virtioBlk, iso: "/Users/x/my,disk.iso"))
-        XCTAssertTrue(a.contains { $0.hasPrefix("a,,b,process=nexvm-") })
+        XCTAssertTrue(a.contains("a,,b"))
         XCTAssertTrue(a.contains { $0.hasSuffix("file=/Users/x/my,,disk.iso") })
     }
 
     func testShellMetacharactersStayInsideSingleArgument() throws {
         let name = "x; rm -rf ~ $(whoami) `id`"
         let a = try build(config(guest: .linuxARM64, name: name, iface: .virtioBlk))
-        XCTAssertTrue(a.contains { $0.hasPrefix(name + ",process=") })
+        XCTAssertTrue(a.contains(name))
     }
 
     func testInstallMediaIsReadOnlyAndBootFirst() throws {

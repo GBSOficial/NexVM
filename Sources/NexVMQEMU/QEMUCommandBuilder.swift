@@ -27,6 +27,13 @@ public enum QEMUOption {
     public static func escape(_ value: String) -> String { value.replacingOccurrences(of: ",", with: ",,") }
 }
 
+public struct QEMUBuildOptions: Equatable, Sendable {
+    /// No window; serial console goes to `serialLog` (used by automated boot tests).
+    public var headless = false
+    public var serialLog: URL?
+    public init(headless: Bool = false, serialLog: URL? = nil) { self.headless = headless; self.serialLog = serialLog }
+}
+
 public struct QEMUCommandBuilder: Sendable {
     public var installation: QEMUInstallation
 
@@ -40,7 +47,8 @@ public struct QEMUCommandBuilder: Sendable {
         bundle: VMBundle,
         firmware: QEMUFirmware,
         qmpSocket: URL,
-        tpmSocket: URL? = nil
+        tpmSocket: URL? = nil,
+        options: QEMUBuildOptions = QEMUBuildOptions()
     ) throws -> QEMULaunchSpec {
         guard c.architecture == .arm64 else { throw QEMUBuildError.unsupportedArchitecture }
         guard c.backend == .qemu else { throw QEMUBuildError.unsupportedBackend }
@@ -48,7 +56,7 @@ public struct QEMUCommandBuilder: Sendable {
         let e = QEMUOption.escape
 
         var a: [String] = []
-        a += ["-name", "\(e(c.name)),process=nexvm-\(c.id.uuidString.prefix(8))"]
+        a += ["-name", e(c.name)]  // `process=` is unsupported on macOS
         a += ["-nodefaults", "-no-user-config"]
         a += ["-machine", "virt", "-accel", "hvf", "-cpu", "host"]
         a += ["-smp", String(c.cpuCount), "-m", "\(c.memoryMiB)M"]
@@ -92,7 +100,8 @@ public struct QEMUCommandBuilder: Sendable {
         }
 
         a += ["-qmp", "unix:\(e(qmpSocket.path)),server=on,wait=off"]
-        a += ["-display", "cocoa"]
+        if let log = options.serialLog { a += ["-serial", "file:\(e(log.path))"] }
+        a += ["-display", options.headless ? "none" : "cocoa"]
 
         return QEMULaunchSpec(executable: installation.system, arguments: a)
     }

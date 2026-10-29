@@ -4,11 +4,13 @@ public struct QEMUInstallation: Equatable, Sendable {
     public var system: URL            // qemu-system-aarch64
     public var imageTool: URL?        // qemu-img
     public var firmwareCode: URL?     // edk2-aarch64-code.fd
+    public var firmwareVarsTemplate: URL?  // edk2-arm-vars.fd (copied per VM)
 
-    public init(system: URL, imageTool: URL? = nil, firmwareCode: URL? = nil) {
+    public init(system: URL, imageTool: URL? = nil, firmwareCode: URL? = nil, firmwareVarsTemplate: URL? = nil) {
         self.system = system
         self.imageTool = imageTool
         self.firmwareCode = firmwareCode
+        self.firmwareVarsTemplate = firmwareVarsTemplate
     }
 }
 
@@ -35,10 +37,12 @@ public enum QEMUBinaryLocator {
             let img = bin.appendingPathComponent("qemu-img")
             let prefix = bin.deletingLastPathComponent()
             let fw = prefix.appendingPathComponent("share/qemu/edk2-aarch64-code.fd")
+            let vars = prefix.appendingPathComponent("share/qemu/edk2-arm-vars.fd")
             return QEMUInstallation(
                 system: system.resolvingSymlinksInPath(),
                 imageTool: fileManager.isExecutableFile(atPath: img.path) ? img : nil,
-                firmwareCode: fileManager.isReadableFile(atPath: fw.path) ? fw : nil
+                firmwareCode: fileManager.isReadableFile(atPath: fw.path) ? fw : nil,
+                firmwareVarsTemplate: fileManager.isReadableFile(atPath: vars.path) ? vars : nil
             )
         }
         return nil

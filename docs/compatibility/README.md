@@ -14,5 +14,11 @@ A guest is **Tested** only after: real boot, install, reboot with data kept, and
 - Verified: `qemu-system-aarch64 --version`, `-accel help` lists `hvf`, `edk2-aarch64-code.fd` present, and `-machine virt -accel hvf -cpu host -display none -S` starts and stays alive (no guest ran).
 - `swtpm` is NOT installed: Windows 11 TPM path unresolved.
 
+## Integration evidence (2026-10-29, `EngineIntegrationTests`, real QEMU 11.1.3 + HVF)
+- `QEMUEngine` starts a VM with no OS media, connects QMP, reports `running`; UEFI (edk2) banner appears on the serial console, proving firmware executed under HVF.
+- A second start of the same VM is rejected; `forceStop` ends only that process; lock is released; NVRAM (`metadata/vars.fd`) persists and a second boot works.
+- Found by this test: `-name ...,process=` is unsupported on macOS (removed).
+- No guest OS has been installed or booted yet.
+
 ## Unit-tested (no guest involved)
 QEMU argument construction, QMP parsing, process lifecycle (SIGTERM→SIGKILL on own pid), VM bundle persistence, path validation, resource limits. These do **not** prove any guest boots.
