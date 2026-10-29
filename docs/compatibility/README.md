@@ -4,7 +4,7 @@ A guest is **Tested** only after: real boot, install, reboot with data kept, and
 
 | Guest | Status | Evidence |
 |---|---|---|
-| Linux ARM64 | Planned | none yet |
+| Linux ARM64 | **Experimental** — Alpine virt 3.24.3 live ISO boots to `login:` (serial). Not installed to disk, no keyboard/mouse/display check yet | see below |
 | Windows 11 ARM64 | Planned | none yet |
 | Windows App Mode | Planned (design only) | — |
 
@@ -18,7 +18,8 @@ A guest is **Tested** only after: real boot, install, reboot with data kept, and
 - `QEMUEngine` starts a VM with no OS media, connects QMP, reports `running`; UEFI (edk2) banner appears on the serial console, proving firmware executed under HVF.
 - A second start of the same VM is rejected; `forceStop` ends only that process; lock is released; NVRAM (`metadata/vars.fd`) persists and a second boot works.
 - Found by this test: `-name ...,process=` is unsupported on macOS (removed).
-- No guest OS has been installed or booted yet.
+- `testAlpineBootsToLoginPrompt`: `alpine-virt-3.24.3-aarch64.iso` (sha256 e3460308…8f, verified against the official `latest-releases.yaml`) boots from the install-media path and reaches `login:` on the serial console in ~11 s, 2 vCPU / 1 GiB, virtio-blk + virtio-net, HVF. ISO stays unmodified.
+- NOT shown: install to disk and reboot with persisted data, graphical display, keyboard/mouse input, clean ACPI shutdown. Windows has not been attempted.
 
 ## Unit-tested (no guest involved)
 QEMU argument construction, QMP parsing, process lifecycle (SIGTERM→SIGKILL on own pid), VM bundle persistence, path validation, resource limits. These do **not** prove any guest boots.

@@ -64,6 +64,40 @@ final class EngineIntegrationTests: XCTestCase {
         _ = await engine.waitUntilStopped(vmID: c.id, timeout: 10)
     }
 
+    /// Boots a real Linux ARM64 installer ISO and waits for its login prompt on the serial console.
+    /// ISO path: $NEXVM_TEST_ISO or /path/to/tools/isos/alpine-virt-3.24.3-aarch64.iso
+    func testAlpineBootsToLoginPrompt() async throws {
+        let isoPath = ProcessInfo.processInfo.environment["NEXVM_TEST_ISO"]
+            ?? "/path/to/tools/isos/alpine-virt-3.24.3-aarch64.iso"
+        guard let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil,
+              FileManager.default.fileExists(atPath: isoPath) else { throw XCTSkip("QEMU or Alpine ISO missing") }
+        XCTAssertNoThrow(try ISOValidator.validate(path: isoPath))
+
+        let library = VMLibrary(root: root.appendingPathComponent("lib"))
+        let c = VMConfiguration(name: "alpine", guest: .linuxARM64, cpuCount: 2, memoryMiB: 1024,
+                                disks: [DiskConfiguration(relativePath: "disks/main.img", sizeGiB: 8, format: .raw, interface: .virtioBlk)],
+                                installMedia: InstallMedia(path: isoPath))
+        let bundle = try library.create(c)
+        try DiskImageCreator.createSparseRaw(in: bundle, relativePath: "disks/main.img", sizeGiB: 8)
+        let serial = bundle.logsURL.appendingPathComponent("serial.log")
+        let engine = QEMUEngine(installation: install, options: QEMUBuildOptions(headless: true, serialLog: serial))
+
+        try await engine.start(c, bundleURL: bundle.url)
+        var output = ""
+        for _ in 0..<900 {  // up to 90 s
+            output = (try? String(contentsOf: serial, encoding: .utf8)) ?? ""
+            if output.contains("login:") { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let ok = output.contains("login:")
+        if !ok { print("SERIAL TAIL:\n\(output.suffix(1500))") }
+        try await engine.forceStop(vmID: c.id)
+        _ = await engine.waitUntilStopped(vmID: c.id, timeout: 10)
+        XCTAssertTrue(ok, "Alpine did not reach login prompt")
+        // The ISO is only referenced, never modified or copied.
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: isoPath)[.size] as? Int, 93_452_288)
+    }
+
     func testStartFailsCleanlyWithoutFirmware() async throws {
         let engine = QEMUEngine(installation: QEMUInstallation(system: URL(fileURLWithPath: "/nonexistent/qemu")))
         let c = VMConfiguration(name: "x", guest: .linuxARM64, cpuCount: 1, memoryMiB: 1024,

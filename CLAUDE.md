@@ -4,7 +4,7 @@
 App open source e gratuito para macOS (Apple Silicon) que gerencia VMs Windows 11 ARM64 e Linux ARM64 com **QEMU + HVF**. Sem telemetria, contas, paywall ou servidor proprietário. Funciona offline. Parallels é só referência de UX, nunca de código/identidade.
 
 ## Estado (atualize ao fim de cada fase)
-Fase 1 concluída; Fase 2 em andamento: `QEMUEngine` + `QMPClient` validados com QEMU real (firmware UEFI sobe sob HVF; 42 testes passam). Nenhum SO convidado bootado ainda; Windows nunca. QEMU 11.1.3 vive no SSD: `/path/to/tools/homebrew` (tudo de ferramentas/ISOs/caches vai para o SSD, nunca para o disco interno). Não afirme suporte sem teste real (ver `docs/compatibility/`).
+Fase 1 concluída; Fase 2 em andamento: `QEMUEngine` + `QMPClient` validados com QEMU real (firmware UEFI sobe sob HVF; 42 testes passam). Alpine Linux ARM64 (live ISO) chega ao `login:` via serial sob HVF (experimental); sem instalação em disco, display ou input verificados; Windows nunca tentado. ISOs ficam em `/path/to/tools/isos`. QEMU 11.1.3 vive no SSD: `/path/to/tools/homebrew` (tudo de ferramentas/ISOs/caches vai para o SSD, nunca para o disco interno). Não afirme suporte sem teste real (ver `docs/compatibility/`).
 
 ## Layout (SwiftPM único na raiz — ver ADR-0001)
 - `Sources/NexVMCore` modelos (`VMConfiguration`), validação, `HostResources`, `ResourcePolicy`
