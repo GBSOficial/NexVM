@@ -4,7 +4,7 @@
 App open source e gratuito para macOS (Apple Silicon) que gerencia VMs Windows 11 ARM64 e Linux ARM64 com **QEMU + HVF**. Sem telemetria, contas, paywall ou servidor proprietário. Funciona offline. Parallels é só referência de UX, nunca de código/identidade.
 
 ## Estado (atualize ao fim de cada fase)
-Fase 1 concluída; Fase 2 em andamento: `QEMUEngine` + `QMPClient` validados com QEMU real (firmware UEFI sobe sob HVF; 42 testes passam). Alpine Linux ARM64: live ISO boota, instala no disco do bundle, reinicia pelo disco com dados mantidos e desliga via ACPI (testado; ver docs/compatibility). Mouse não verificado (console texto); sem desktop gráfico testado; Windows 11: instalador roda e passa a checagem de Secure Boot com edk2 2024.02 (Ubuntu, não embutido; Debian 2025.02/Fedora 2026 travam no HVF); instalação não concluída. ISOs ficam em `/path/to/tools/isos`. QEMU 11.1.3 vive no SSD: `/path/to/tools/homebrew` (tudo de ferramentas/ISOs/caches vai para o SSD, nunca para o disco interno). Não afirme suporte sem teste real (ver `docs/compatibility/`).
+Fase 1 concluída; Fase 2 em andamento: `QEMUEngine` + `QMPClient` validados com QEMU real (firmware UEFI sobe sob HVF; 42 testes passam). Alpine Linux ARM64: live ISO boota, instala no disco do bundle, reinicia pelo disco com dados mantidos e desliga via ACPI (testado; ver docs/compatibility). Mouse não verificado (console texto); sem desktop gráfico testado; Windows 11: instalador completa e o sistema instalado boota até o primeiro uso (OOBE) com edk2 2024.02 Secure Boot (não embutido; builds Debian 2025.02/Fedora 2026 travam no HVF); desktop, desligamento e rede não verificados. QEMU 11.1.3 fica em um prefixo Homebrew separado, localizado por `NEXVM_QEMU_PREFIX`; ISOs e firmware são do usuário e nunca vão para o Git. Não afirme suporte sem teste real (ver `docs/compatibility/`).
 
 ## Layout (SwiftPM único na raiz — ver ADR-0001)
 - `Sources/NexVMCore` modelos (`VMConfiguration`), validação, `HostResources`, `ResourcePolicy`
@@ -32,7 +32,7 @@ xcodebuild -scheme NexVM-Package -destination 'platform=macOS,arch=arm64' -deriv
 - Caminhos vindos de config/usuário passam por `PathValidator.resolve`. Diretório do bundle = UUID, nunca o nome da VM.
 - Escritas de config: `.atomic`. Bloqueio de VM: `VMLock`. Apagar dados exige `DeletionConfirmation` por VM.
 - Sinais só ao pid que o NexVM lançou (`ManagedProcess`); nunca `pkill qemu`.
-- Texto de UI só via `L("chave")` + as 3 `.strings` (rode check-strings.py). Nada hardcoded em views. Cores: só `NexVMTheme`; superfícies/texto com cores semânticas do sistema (Light/Dark). Estado nunca só por cor (ícone+texto). Debug: `NEXVM_COLOR_SCHEME=light|dark`, `NEXVM_LIBRARY_PATH=<abs>`.
+- Texto de UI só via `L("chave")` + as 3 `.strings` (rode check-strings.py). Nada hardcoded em views. Cores: só `NexVMTheme`; superfícies/texto com cores semânticas do sistema (Light/Dark). Estado nunca só por cor (ícone+texto). Debug: `NEXVM_COLOR_SCHEME=light|dark`, `NEXVM_LIBRARY_PATH=<abs>`, `NEXVM_QEMU_PREFIX=<abs>`, `NEXVM_FIRMWARE_DIR=<abs>`, `NEXVM_TEST_ISO=<abs>`.
 - Sem botão/recurso sem implementação real; marcar como planejado/experimental.
 - Commits pequenos, Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`).
 
@@ -49,7 +49,7 @@ Menor privilégio, sem sudo, sem kext, sem portas públicas (rede `userNAT` sem 
 
 ## Limitações conhecidas
 - Virtualization.framework não é backend: Windows guest não é oficialmente suportado por ela (ADR-0002).
-- TPM 2.0 para Windows 11: engine gerencia `swtpm` por VM (`SwtpmLaunch`, estado em `metadata/tpm`) e RECUSA iniciar Windows sem ele; `swtpm` 0.10.2 instalado no SSD e validado com QEMU real (TPM no firmware; `tpm-tis-device` exige `ppi=off` sob HVF), e o instalador oficial do Windows 11 ARM64 já roda na tela embutida até a escolha de edição (instalação NÃO concluída; ver docs/compatibility/windows-11-arm64.md). Não implementar bypass de requisitos.
+- TPM 2.0 para Windows 11: engine gerencia `swtpm` por VM (`SwtpmLaunch`, estado em `metadata/tpm`) e RECUSA iniciar Windows sem ele; `swtpm` 0.10.2 instalado no prefixo do QEMU e validado com QEMU real (TPM no firmware; `tpm-tis-device` exige `ppi=off` sob HVF), e o instalador oficial do Windows 11 ARM64 já roda na tela embutida até a escolha de edição (instalação NÃO concluída; ver docs/compatibility/windows-11-arm64.md). Não implementar bypass de requisitos.
 - Drivers: Windows não tem driver virtio inbox → disco NVMe e NIC e1000e (a validar em boot real).
 - Display: embutido via VNC em socket unix privado + cliente RFB próprio (`NexVMDisplay`, ADR-0005); fallback `-display cocoa,zoom-to-fit=on` em Ajustes → Avançado. Sem clipboard, áudio, redimensionamento dinâmico; display embutido e tela cheia dentro do NexVM não existem (a janela da VM diz isso). "Restart" = `system_reset` (reset de hardware), não reboot gracioso.
 - Ícone/marca: master do ícone é upscale de ~257 px e SVGs são reconstruções aproximadas (ver assets/brand/README.md); refazer em resolução nativa antes de release.

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Dev tool: drive an Alpine install over QEMU serial on a NexVM bundle (no GUI typing needed).
-Mirrors the Linux-guest arguments of QEMUCommandBuilder. Paths assume the SSD layout in CLAUDE.md.
+Mirrors the Linux-guest arguments of QEMUCommandBuilder. Needs NEXVM_TOOLS_DIR with isos/ (Alpine virt aarch64 ISO) and homebrew/ (QEMU prefix).
 Usage: [NOISO=1] [CHECK=1] tools/alpine-serial-install.py <bundle.nexvm> [shell commands...]
 Commands must end by echoing INSTALL-$((1+1))-DONE (the script waits for the evaluated marker)."""
 import os, subprocess, sys, time, select, re
 
-B = "/path/to/tools"
+B = os.environ.get("NEXVM_TOOLS_DIR") or sys.exit("set NEXVM_TOOLS_DIR (see docstring)")
 BUNDLE = sys.argv[1]
 ISO = f"{B}/isos/alpine-virt-3.24.3-aarch64.iso"
 Q = f"{B}/homebrew"

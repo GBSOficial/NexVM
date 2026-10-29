@@ -75,10 +75,9 @@ final class EngineIntegrationTests: XCTestCase {
     }
 
     /// Boots a real Linux ARM64 installer ISO and waits for its login prompt on the serial console.
-    /// ISO path: $NEXVM_TEST_ISO or /path/to/tools/isos/alpine-virt-3.24.3-aarch64.iso
+    /// ISO path: $NEXVM_TEST_ISO (an Alpine virt aarch64 ISO); the test is skipped when unset.
     func testAlpineBootsToLoginPrompt() async throws {
-        let isoPath = ProcessInfo.processInfo.environment["NEXVM_TEST_ISO"]
-            ?? "/path/to/tools/isos/alpine-virt-3.24.3-aarch64.iso"
+        guard let isoPath = ProcessInfo.processInfo.environment["NEXVM_TEST_ISO"] else { throw XCTSkip("NEXVM_TEST_ISO not set") }
         guard let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil,
               FileManager.default.fileExists(atPath: isoPath) else { throw XCTSkip("QEMU or Alpine ISO missing") }
         XCTAssertNoThrow(try ISOValidator.validate(path: isoPath))
@@ -187,8 +186,7 @@ final class EngineIntegrationTests: XCTestCase {
     /// Embedded display end to end: QEMU serves the screen over a private VNC unix socket, the RFB client
     /// receives real frames, and keys sent as physical scancodes reach the Alpine login prompt.
     func testEmbeddedDisplayShowsGuestAndAcceptsKeys() async throws {
-        let isoPath = ProcessInfo.processInfo.environment["NEXVM_TEST_ISO"]
-            ?? "/path/to/tools/isos/alpine-virt-3.24.3-aarch64.iso"
+        guard let isoPath = ProcessInfo.processInfo.environment["NEXVM_TEST_ISO"] else { throw XCTSkip("NEXVM_TEST_ISO not set") }
         guard let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil,
               FileManager.default.fileExists(atPath: isoPath) else { throw XCTSkip("QEMU or Alpine ISO missing") }
         let library = VMLibrary(root: root.appendingPathComponent("lib"))

@@ -27,11 +27,14 @@ public struct QEMUInstallation: Equatable, Sendable {
 }
 
 public enum QEMUBinaryLocator {
-    public static let defaultSearchDirectories = [
-        "/path/to/tools/homebrew/bin",
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-    ]
+    /// `$NEXVM_QEMU_PREFIX/bin` (a QEMU install kept outside the system prefixes), then Homebrew defaults.
+    public static var defaultSearchDirectories: [String] {
+        var dirs: [String] = []
+        if let prefix = ProcessInfo.processInfo.environment["NEXVM_QEMU_PREFIX"], prefix.hasPrefix("/") {
+            dirs.append(URL(fileURLWithPath: prefix).appendingPathComponent("bin").path)
+        }
+        return dirs + ["/opt/homebrew/bin", "/usr/local/bin"]
+    }
 
     /// Looks for an existing QEMU install. Never installs or modifies anything.
     /// `explicit` (e.g. a user preference) wins over the search directories.

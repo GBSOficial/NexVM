@@ -5,14 +5,14 @@ A guest is **Tested** only after: real boot, install, reboot with data kept, and
 | Guest | Status | Evidence |
 |---|---|---|
 | Linux ARM64 | **Tested (Alpine 3.24.3 only)** — live ISO boots; installs to the NexVM disk; reboots from disk with data kept; ACPI shutdown works. Mouse unverified (text console); graphical desktop guest untested | see below |
-| Windows 11 ARM64 | **Experimental** — official installer (build 26300) runs in NexVM up to image selection; install not completed, no reboot/shutdown tested | `windows-11-arm64.md` |
+| Windows 11 ARM64 | **Experimental** — installer completes and the installed system boots to first-run setup (OOBE); desktop, shutdown and network not verified | `windows-11-arm64.md` |
 | Windows App Mode | Planned (design only) | — |
 
 ## Phase 0 host facts (measured 2026-10-29)
 - Apple M4, 10 cores, 16 GiB RAM, macOS 27.0.1, Xcode 27.1, Swift 6.4, `kern.hv_support=1`.
-- QEMU 11.1.3 installed 2026-10-29 in a separate Homebrew prefix on the SSD (`/path/to/tools/homebrew`, Tier 3, built in ~3 min). Nothing installed in `/opt/homebrew`.
+- QEMU 11.1.3 installed 2026-10-29 in a separate Homebrew prefix outside `/opt/homebrew` (Tier 3, built in ~3 min); NexVM finds it through `NEXVM_QEMU_PREFIX`.
 - Verified: `qemu-system-aarch64 --version`, `-accel help` lists `hvf`, `edk2-aarch64-code.fd` present, and `-machine virt -accel hvf -cpu host -display none -S` starts and stays alive (no guest ran).
-- `swtpm` 0.10.2 installed in the same SSD prefix (see `windows-11-arm64.md`).
+- `swtpm` 0.10.2 installed in the same prefix (see `windows-11-arm64.md`).
 
 ## Integration evidence (2026-10-29, `EngineIntegrationTests`, real QEMU 11.1.3 + HVF)
 - `QEMUEngine` starts a VM with no OS media, connects QMP, reports `running`; UEFI (edk2) banner appears on the serial console, proving firmware executed under HVF.

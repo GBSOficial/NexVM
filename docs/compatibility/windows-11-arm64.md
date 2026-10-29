@@ -1,6 +1,6 @@
 # Windows 11 ARM64 — status and plan
 
-**Status: Experimental (Setup runs; install not completed).** The official Windows 11 ARM64 installer (`Windows11_Client_arm64_pt-br_26300_9457.iso`, volume label `CCCOMA_A64FRE_PT-BR_DV9`, build 26300 — an Insider-channel build, not the stable release) boots in NexVM and runs through language, keyboard and installation-option pages, then the product-key page and "Select image" (Home / Home Single Language / Pro). Edition choice, license acceptance and the rest of the install were left to the user and have **not** been done; no disk install, reboot or ACPI shutdown has been tested for Windows.
+**Status: Experimental.** The official Windows 11 ARM64 installer (`Windows11_Client_arm64_pt-br_26300_9457.iso`, build 26300 — an Insider-channel build, not the stable release) runs in NexVM with a Secure Boot UEFI build and `swtpm`, the install completes, and the installed system boots from the NVMe disk, reboots itself and reaches the first-run setup (OOBE, account page). Observed 2026-10-29 with the Windows installation driven by the user. **Not tested:** the desktop, ACPI shutdown/restart of the installed system, which network adapter/driver ended up active, activation, performance, x64 apps. Edition choice, license acceptance and account creation are user decisions; NexVM and its maintainers do not automate them.
 
 ## What NexVM already implements (unit-tested, not booted with Windows)
 - Machine: `virt`, HVF, `-cpu host`, edk2 AArch64 UEFI, `ramfb` + xHCI keyboard/tablet.
@@ -18,7 +18,7 @@
 ## Requirements (user side)
 1. Windows 11 ARM64 ISO downloaded by you from Microsoft (<https://www.microsoft.com/software-download/windows11arm64>). NexVM never downloads, bundles or redistributes it.
 2. A valid Windows license. NexVM provides no keys and no activation workarounds.
-3. `swtpm` installed next to QEMU (installed on this machine, SSD prefix, 2026-10-29; see below).
+3. `swtpm` installed next to QEMU (installed 2026-10-29 in the QEMU prefix; see below).
 4. Recommended starting point on a 16 GB Mac: 4 vCPU, 4 GB RAM, 64 GB disk (the wizard defaults). Adjust after measuring.
 
 ## TPM evidence (2026-10-29, swtpm 0.10.2 + QEMU 11.1.3, no Windows involved)
@@ -47,4 +47,4 @@
 Boot Setup from the official ISO → install → reboot from disk with data kept → keyboard and mouse work → ACPI shutdown → evidence (screenshots/log) recorded here. A running QEMU process or a black window is not evidence.
 
 ## swtpm install notes
-Installed from Homebrew core formula `swtpm` 0.10.2 (BSD-3-Clause) + `libtpms` 0.10.2 (BSD-2-Clause), into the SSD prefix. The dry run lists 20 extra dependencies (mostly graphics libraries pulled in by `json-glib` → `gobject-introspection`); all official homebrew-core formulae. No telemetry (Homebrew analytics disabled); swtpm runs locally and opens only unix sockets.
+Installed from Homebrew core formula `swtpm` 0.10.2 (BSD-3-Clause) + `libtpms` 0.10.2 (BSD-2-Clause), into the QEMU prefix. The dry run lists 20 extra dependencies (mostly graphics libraries pulled in by `json-glib` → `gobject-introspection`); all official homebrew-core formulae. No telemetry (Homebrew analytics disabled); swtpm runs locally and opens only unix sockets.
