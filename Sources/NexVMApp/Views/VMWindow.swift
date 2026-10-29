@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import NexVMCore
 import NexVMEngine
+import UniformTypeIdentifiers
 
 /// One window per VM, separate from the management window. While the VM runs (and the embedded
 /// display is enabled) it shows the guest screen; otherwise it shows the VM's details.
@@ -11,6 +12,7 @@ struct VMWindowView: View {
     @State private var logTail = ""
     @State private var display = DisplaySession()
     @State private var showInspector = false
+    @State private var choosingDrivers = false
 
     var body: some View {
         if let item = model.item(vmID) {
@@ -129,6 +131,27 @@ struct VMWindowView: View {
                                 .disabled(!model.secureBootAvailable)
                         }
                         .disabled(!state.isIdle).help(L("help.firmware"))
+                        Picker(L("field.adapter"), selection: Binding(
+                            get: { c.network.effectiveAdapter(for: c.guest) }, set: { model.setNetworkAdapter($0, for: item) })) {
+                            Text(L("adapter.e1000e")).tag(NetworkAdapter.e1000e)
+                            Text(L("adapter.virtio")).tag(NetworkAdapter.virtio)
+                        }
+                        .disabled(!state.isIdle).help(L("help.adapter"))
+                        LabeledContent(L("field.driveriso")) {
+                            HStack {
+                                Text(c.driverMedia.map { URL(fileURLWithPath: $0.path).lastPathComponent } ?? L("vmwindow.iso.nodrivers"))
+                                    .foregroundStyle(.secondary)
+                                Button(L("action.choose")) { choosingDrivers = true }
+                                    .controlSize(.small).disabled(!state.isIdle).help(L("help.driveriso"))
+                                if c.driverMedia != nil {
+                                    Button(L("action.eject")) { model.setDriverMedia(path: nil, for: item) }
+                                        .controlSize(.small).disabled(!state.isIdle)
+                                }
+                            }
+                        }
+                        .fileImporter(isPresented: $choosingDrivers, allowedContentTypes: [UTType(filenameExtension: "iso") ?? .data]) { result in
+                            if case .success(let url) = result { model.setDriverMedia(path: url.path, for: item) }
+                        }
                         LabeledContent(L("field.iso")) {
                             HStack {
                                 Text(c.installMedia.map { URL(fileURLWithPath: $0.path).lastPathComponent } ?? L("vmwindow.iso.none"))

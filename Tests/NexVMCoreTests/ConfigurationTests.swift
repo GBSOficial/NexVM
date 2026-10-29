@@ -80,4 +80,23 @@ final class ConfigurationTests: XCTestCase {
         XCTAssertEqual(back.effectiveFirmware, .secureBoot)
         XCTAssertEqual(back.schemaVersion, 1)               // additive field: no schema bump needed
     }
+
+    func testOldConfigWithoutAdapterOrDriverMediaLoadsWithDefaults() throws {
+        let c = config()
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: NexVMJSON.encoder().encode(c)) as? [String: Any])
+        XCTAssertNil(obj["driverMedia"])
+        XCTAssertNil((obj["network"] as? [String: Any])?["adapter"])   // nil is not written
+        obj["network"] = ["mode": "userNAT"]
+        let old = try JSONSerialization.data(withJSONObject: obj)
+        var loaded = try NexVMJSON.decoder().decode(VMConfiguration.self, from: old)
+        XCTAssertNil(loaded.driverMedia)
+        XCTAssertEqual(loaded.network.effectiveAdapter(for: .windows11ARM64), .e1000e)
+        XCTAssertEqual(loaded.network.effectiveAdapter(for: .linuxARM64), .virtio)
+        loaded.network.adapter = .virtio
+        loaded.driverMedia = InstallMedia(path: "/iso/virtio-win.iso")
+        let back = try NexVMJSON.decoder().decode(VMConfiguration.self, from: NexVMJSON.encoder().encode(loaded))
+        XCTAssertEqual(back.network.adapter, .virtio)
+        XCTAssertEqual(back.driverMedia?.path, "/iso/virtio-win.iso")
+        XCTAssertEqual(back.schemaVersion, 1)
+    }
 }

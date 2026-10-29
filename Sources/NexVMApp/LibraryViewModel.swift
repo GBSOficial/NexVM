@@ -197,6 +197,26 @@ final class LibraryViewModel {
         do { try library.save(config, in: item.bundle); reload() } catch { errorMessage = "\(error)" }
     }
 
+    /// Chooses the NIC model of a stopped VM. nil in the config means "default for the guest".
+    func setNetworkAdapter(_ adapter: NetworkAdapter, for item: VMItem) {
+        let c = item.configuration
+        guard state(of: item).isIdle, c.network.effectiveAdapter(for: c.guest) != adapter else { return }
+        var config = c
+        config.network.adapter = adapter == NetworkConfiguration().effectiveAdapter(for: c.guest) ? nil : adapter
+        do { try library.save(config, in: item.bundle); reload() } catch { errorMessage = "\(error)" }
+    }
+
+    /// Attaches (or clears, with nil) the optional driver ISO of a stopped VM. The file is only referenced.
+    func setDriverMedia(path: String?, for item: VMItem) {
+        guard state(of: item).isIdle else { return }
+        if let path {
+            do { try ISOValidator.validate(path: path) } catch { errorMessage = L("error.driveriso"); return }
+        }
+        var config = item.configuration
+        config.driverMedia = path.map(InstallMedia.init(path:))
+        do { try library.save(config, in: item.bundle); reload() } catch { errorMessage = "\(error)" }
+    }
+
     func revealInFinder(_ item: VMItem) { NSWorkspace.shared.activateFileViewerSelecting([item.bundle.url]) }
     func revealLibrary() {
         try? FileManager.default.createDirectory(at: libraryRoot, withIntermediateDirectories: true)

@@ -35,6 +35,13 @@ public enum NetworkMode: String, Codable, Sendable {
     case userNAT
 }
 
+/// Virtual NIC model. Windows has an inbox driver for e1000e only; virtio-net needs the
+/// user-supplied virtio-win drivers.
+public enum NetworkAdapter: String, Codable, Sendable, CaseIterable {
+    case e1000e
+    case virtio
+}
+
 public struct DiskConfiguration: Codable, Equatable, Sendable, Identifiable {
     public var id: UUID
     /// Path relative to the VM bundle root. Never absolute.
@@ -54,7 +61,16 @@ public struct DiskConfiguration: Codable, Equatable, Sendable, Identifiable {
 
 public struct NetworkConfiguration: Codable, Equatable, Sendable {
     public var mode: NetworkMode
-    public init(mode: NetworkMode = .userNAT) { self.mode = mode }
+    /// Optional so older configs still load (nil = default per guest, see `effectiveAdapter(for:)`).
+    public var adapter: NetworkAdapter?
+    public init(mode: NetworkMode = .userNAT, adapter: NetworkAdapter? = nil) {
+        self.mode = mode
+        self.adapter = adapter
+    }
+
+    public func effectiveAdapter(for guest: GuestOS) -> NetworkAdapter {
+        adapter ?? (guest == .windows11ARM64 ? .e1000e : .virtio)
+    }
 }
 
 public struct InstallMedia: Codable, Equatable, Sendable {
@@ -79,6 +95,8 @@ public struct VMConfiguration: Codable, Equatable, Sendable, Identifiable {
     public var installMedia: InstallMedia?
     /// Optional so configs written before this field existed still load (nil = standard).
     public var firmware: FirmwareKind?
+    /// Optional second ISO (e.g. a user-supplied virtio-win.iso), attached read-only without boot priority.
+    public var driverMedia: InstallMedia?
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -92,6 +110,7 @@ public struct VMConfiguration: Codable, Equatable, Sendable, Identifiable {
         network: NetworkConfiguration = NetworkConfiguration(),
         installMedia: InstallMedia? = nil,
         firmware: FirmwareKind? = nil,
+        driverMedia: InstallMedia? = nil,
         now: Date = Date()
     ) {
         self.schemaVersion = Self.currentSchemaVersion
@@ -106,6 +125,7 @@ public struct VMConfiguration: Codable, Equatable, Sendable, Identifiable {
         self.network = network
         self.installMedia = installMedia
         self.firmware = firmware
+        self.driverMedia = driverMedia
         // JSON stores whole seconds (ISO 8601); keep the in-memory value identical to the stored one.
         let whole = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down))
         self.createdAt = whole

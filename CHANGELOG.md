@@ -1,5 +1,6 @@
 # Changelog
 ## Unreleased
+- Per-VM network adapter (Intel e1000e or VirtIO; default e1000e for Windows, VirtIO for Linux) and an optional second read-only "driver ISO" (e.g. a user-supplied virtio-win.iso, never downloaded or bundled) for installing guest drivers. Additive config fields; schema stays 1.
 - Per-VM UEFI firmware choice (Standard / Secure Boot) with separate NVRAM per kind; Windows wizard defaults to Secure Boot when a Secure Boot build is installed; start blocked with a clear message when missing. Windows Setup passes the Secure Boot check with edk2 2024.02 (firmware not bundled).
 - Embedded VM display: QEMU serves VNC on a private unix socket; new `NexVMDisplay` RFB client; display, keyboard (physical scancodes), absolute mouse and scroll inside the VM window; Full Screen, Ctrl-Alt-Del, details inspector; Settings → Advanced to use QEMU's window instead.
 - Windows 11 ARM64 installer boots and runs in NexVM (experimental).

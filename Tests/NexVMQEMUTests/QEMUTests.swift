@@ -56,6 +56,27 @@ final class QEMUCommandBuilderTests: XCTestCase {
         XCTAssertTrue(a.contains("usb-storage,drive=cd0,bootindex=0"))
     }
 
+    func testNetworkAdapterOverrideAndDefaults() throws {
+        var w = config(guest: .windows11ARM64, iface: .nvme)
+        w.network.adapter = .virtio
+        let a = try build(w)
+        XCTAssertTrue(a.contains("virtio-net-pci,netdev=net0") && !a.contains("e1000e,netdev=net0"))
+        var l = config(guest: .linuxARM64, iface: .virtioBlk)
+        l.network.adapter = .e1000e
+        XCTAssertTrue(try build(l).contains("e1000e,netdev=net0"))
+    }
+
+    func testDriverMediaIsSecondReadOnlyCDWithoutBootindex() throws {
+        var c = config(guest: .windows11ARM64, iface: .nvme, iso: "/iso/win.iso")
+        c.driverMedia = InstallMedia(path: "/iso/virtio-win.iso")
+        let a = try build(c)
+        XCTAssertTrue(a.contains("usb-storage,drive=cd0,bootindex=0"))
+        XCTAssertTrue(a.contains("usb-storage,drive=cd1"))
+        XCTAssertTrue(a.contains("if=none,id=cd1,media=cdrom,readonly=on,file=/iso/virtio-win.iso"))
+        let none = try build(config(guest: .windows11ARM64, iface: .nvme, iso: "/iso/win.iso"))
+        XCTAssertFalse(none.contains { $0.contains("cd1") })
+    }
+
     func testTPMArgsOnlyWhenSocketProvided() throws {
         let c = config(guest: .windows11ARM64, iface: .nvme)
         XCTAssertFalse(try build(c).contains { $0.contains("tpm") })

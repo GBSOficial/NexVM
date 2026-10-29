@@ -140,3 +140,11 @@
 "diag.qemu.missing" = "não encontrado";
 "diag.log" = "Log do aplicativo";
 "diag.log.empty" = "Nenhum registro de log ainda.";
+"field.adapter" = "Adaptador de rede";
+"adapter.e1000e" = "Intel e1000e (driver nativo do Windows)";
+"adapter.virtio" = "VirtIO (exige drivers virtio-win)";
+"help.adapter" = "O Windows só traz driver nativo para o e1000e, mas na prática ele não funcionou no primeiro boot (veja as notas de compatibilidade). O VirtIO exige drivers da ISO virtio-win, que você mesmo precisa fornecer; o NexVM não baixa nem inclui essa ISO. Só com a VM parada.";
+"field.driveriso" = "ISO de drivers";
+"vmwindow.iso.nodrivers" = "Nenhuma";
+"help.driveriso" = "Segundo CD opcional, anexado somente leitura e sem prioridade de boot, por exemplo uma virtio-win.iso que você baixou (o NexVM nunca baixa nem inclui). No instalador do Windows use Carregar driver e escolha esse CD. Só com a VM parada.";
+"error.driveriso" = "Este arquivo não é uma imagem ISO válida.";

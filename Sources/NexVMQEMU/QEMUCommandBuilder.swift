@@ -95,12 +95,18 @@ public struct QEMUCommandBuilder: Sendable {
             a += ["-device", "usb-storage,drive=cd0,bootindex=0"]
         }
 
+        if let drivers = c.driverMedia {
+            // Second read-only CD (e.g. virtio-win.iso); no bootindex so the install ISO keeps priority.
+            a += ["-drive", "if=none,id=cd1,media=cdrom,readonly=on,file=\(e(drivers.path))"]
+            a += ["-device", "usb-storage,drive=cd1"]
+        }
+
         switch c.network.mode {
         case .userNAT:
             // No hostfwd: nothing is exposed on host interfaces.
             a += ["-netdev", "user,id=net0"]
-            // Windows has no inbox virtio-net driver; e1000e is inbox. Linux uses virtio.
-            let nic = c.guest == .windows11ARM64 ? "e1000e" : "virtio-net-pci"
+            // Default: Windows -> e1000e, Linux -> virtio. The user can override per VM.
+            let nic = c.network.effectiveAdapter(for: c.guest) == .e1000e ? "e1000e" : "virtio-net-pci"
             a += ["-device", "\(nic),netdev=net0"]
         }
 

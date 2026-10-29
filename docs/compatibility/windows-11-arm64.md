@@ -26,12 +26,17 @@
 - Finding: `tpm-tis-device` with its default PPI region fails under HVF on Apple Silicon (`HV_BAD_ARGUMENT`, 1 KB RAM region vs 16 KB host pages). NexVM uses `ppi=off`. Consequence: no TPM Physical Presence Interface (firmware/OS "clear TPM" requests); not needed for installing Windows, effect on other flows unknown.
 - Guest view (Alpine, serial): the kernel log shows `TPMEventLog`/`TPMFinalLog` (firmware measured boot reached the TPM) and an ACPI `TPM2` table. The Alpine `virt` kernel has no TIS driver, so no `/dev/tpm0`; that says nothing about Windows.
 
+## Network
+- Evidence: with `e1000e` the OOBE screen "Vamos conectar você a uma rede" showed no adapter and stayed stuck offering "Instalar driver". Windows 11 ARM64 has no usable inbox driver for the QEMU e1000e NIC.
+- Plan (status: Untested): per-VM adapter choice (Intel e1000e or VirtIO) plus an optional second "driver ISO" attached read-only via usb-storage without bootindex. The user supplies `virtio-win.iso` (NexVM never downloads or bundles it), selects "VirtIO" and the driver ISO in the VM window while the VM is stopped, then uses "Instalar driver" in OOBE (or Load driver in Setup) and picks the `NetKVM` ARM64 driver from that CD.
+- Not verified: that NetKVM from virtio-win installs and gets a NAT address on this setup; whether Setup/OOBE detects the USB CD for driver loading.
+
 ## Unverified assumptions (each must be tested before claiming support)
 | Item | Why it matters |
 |---|---|
 | Windows Setup accepts the swtpm TPM 2.0 | Win11 requirement check |
 | Secure Boot firmware | Required by Setup. NexVM does not ship it: place `AAVMF_CODE.secboot.fd` + `AAVMF_VARS.ms.fd` in `$NEXVM_FIRMWARE_DIR`, `<qemu prefix>/share/nexvm/firmware` or `~/Library/Application Support/NexVM/Firmware`. Only edk2 2024.02 (Ubuntu) was found to run on QEMU 11.1.3 + HVF. Debian 2025.02 and Fedora 2026 builds hang at boot under HVF (work under TCG; cause not proven). Unsigned media (e.g. Alpine ISO) is rejected under Secure Boot: use "Standard" firmware for Linux. No bypass will be implemented. |
-| `e1000e` has an inbox Windows ARM64 driver | Not yet reached; network is needed for OOBE on some editions |
+| `e1000e` has an inbox Windows ARM64 driver | Disproved in practice: see Network section |
 | `ramfb` resolution/performance | Fixed framebuffer, no accelerated graphics; Windows ARM guest drivers (e.g. virtio-gpu) are not redistributable by NexVM |
 | NVMe boot, reboot with persisted data | Needs a real install |
 | Clean shutdown via ACPI power button | Needs Windows running |

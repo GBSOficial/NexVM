@@ -140,3 +140,11 @@
 "diag.qemu.missing" = "not found";
 "diag.log" = "Application log";
 "diag.log.empty" = "No log entries yet.";
+"field.adapter" = "Network adapter";
+"adapter.e1000e" = "Intel e1000e (Windows inbox driver)";
+"adapter.virtio" = "VirtIO (needs virtio-win drivers)";
+"help.adapter" = "Windows has a built-in driver only for e1000e, but it is not working in practice at first boot (see compatibility notes). VirtIO needs drivers from the virtio-win ISO, which you must supply yourself; NexVM does not download or bundle it. Only while the VM is stopped.";
+"field.driveriso" = "Driver ISO";
+"vmwindow.iso.nodrivers" = "None";
+"help.driveriso" = "Optional second CD, attached read-only without boot priority, e.g. a virtio-win.iso that you downloaded yourself (NexVM never downloads or bundles it). In Windows Setup use Load driver and pick it. Only while the VM is stopped.";
+"error.driveriso" = "This file is not a valid ISO image.";
