@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Builds NexVM.app from the SwiftPM executable. Ad-hoc signed: runs locally, NOT notarized.
+# Builds NexVM.app from the SwiftPM executable. Ad-hoc signed by default (runs locally, NOT notarized).
+# With NEXVM_SIGN_IDENTITY set (a "Developer ID Application: ..." identity) it signs with the hardened runtime
+# and a secure timestamp, ready for notarization (see scripts/release.sh).
 # Usage: scripts/package-app.sh [debug|release]   (default: release)
 set -euo pipefail
 
@@ -7,6 +9,7 @@ CONFIG="${1:-release}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/build/NexVM.app"
 VERSION="$(cat "$ROOT/VERSION")"
+BUILD_NUMBER="${VERSION%%-*}"   # CFBundleVersion must be numeric (strip "-dev" etc.)
 
 cd "$ROOT"
 swift build -c "$CONFIG"
@@ -39,7 +42,7 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
-  <key>CFBundleVersion</key><string>${VERSION}</string>
+  <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>CFBundleDevelopmentRegion</key><string>en</string>
@@ -47,5 +50,11 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 
-codesign --force --sign - "$OUT"
-echo "Built $OUT (ad-hoc signed, not notarized)"
+if [ -n "${NEXVM_SIGN_IDENTITY:-}" ]; then
+  codesign --force --options runtime --timestamp --sign "$NEXVM_SIGN_IDENTITY" "$OUT"
+  codesign --verify --strict --deep --verbose=1 "$OUT"
+  echo "Built $OUT (Developer ID signed, hardened runtime; notarize with scripts/release.sh)"
+else
+  codesign --force --sign - "$OUT"
+  echo "Built $OUT (ad-hoc signed, not notarized)"
+fi

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NexVM — Your OS. Your Freedom.</title>
+<meta name="description" content="NexVM é um gerenciador de máquinas virtuais open source e gratuito para Macs Apple Silicon: Windows 11 ARM64 e Linux ARM64 com QEMU e aceleração HVF. Sem telemetria, sem contas.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#0B0F1A">
+<link rel="canonical" href="https://nexvm.gbsoficial.com/">
+<link rel="icon" type="image/svg+xml" href="assets/symbol.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NexVM — Your OS. Your Freedom.">
+<meta property="og:description" content="Windows 11 ARM64 e Linux ARM64 no seu Mac Apple Silicon. Open source (MIT), gratuito, sem telemetria.">
+<meta property="og:url" content="https://nexvm.gbsoficial.com/">
+<meta property="og:image" content="https://nexvm.gbsoficial.com/assets/og-icon.png">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">Pular para o conteúdo</a>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top" aria-label="NexVM">
+      <img src="assets/symbol.svg" alt="" width="32" height="32">
+      <span>NexVM</span>
+    </a>
+    <nav aria-label="Principal">
+      <a href="#recursos" data-i18n="nav.features">Recursos</a>
+      <a href="#comecar" data-i18n="nav.start">Como começar</a>
+      <a href="#status" data-i18n="nav.status">Status</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/GBSOficial/NexVM" rel="noopener">GitHub</a>
+    </nav>
+    <button class="lang" id="lang" type="button" aria-label="Mudar idioma / Change language">EN</button>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div class="wrap hero-in">
+    <p class="eyebrow" data-i18n="hero.eyebrow">Open source · MIT · Apple Silicon</p>
+    <h1 data-i18n="hero.title">Windows e Linux no seu Mac. <span class="grad">Livre de verdade.</span></h1>
+    <p class="lead" data-i18n="hero.lead">NexVM é um gerenciador de máquinas virtuais gratuito e de código aberto para Macs Apple Silicon. Usa QEMU com aceleração HVF. Sem telemetria, sem contas, sem servidor próprio, funciona offline.</p>
+    <div class="cta">
+      <a class="btn primary" href="#download" data-i18n="hero.download">Baixar para macOS</a>
+      <a class="btn" href="https://github.com/GBSOficial/NexVM" rel="noopener" data-i18n="hero.github">Ver código no GitHub</a>
+    </div>
+    <ul class="badges" aria-label="Requisitos">
+      <li data-i18n="badge.chip">Apple Silicon</li>
+      <li data-i18n="badge.macos">macOS 14+</li>
+      <li data-i18n="badge.preview">Preview 0.1</li>
+      <li data-i18n="badge.free">Grátis</li>
+    </ul>
+    <figure class="shot">
+      <img src="assets/app-window.png" width="1000" height="215" alt="Janela principal do NexVM listando duas máquinas virtuais: Windows 11 ARM64 e Alpine Linux ARM64." data-i18n-alt="shot.alt">
+      <figcaption data-i18n="shot.cap">A biblioteca de máquinas virtuais do NexVM (macOS, tema escuro).</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="sec" id="recursos">
+  <div class="wrap">
+    <h2 data-i18n="feat.title">Feito para ser simples, aberto e seguro</h2>
+    <div class="grid">
+      <article class="card">
+        <h3 data-i18n="f1.t">Windows 11 ARM64</h3>
+        <p data-i18n="f1.d">Instalador oficial da Microsoft com TPM 2.0 (swtpm) e Secure Boot. Sem atalhos: o NexVM não burla requisitos nem ativação.</p>
+      </article>
+      <article class="card">
+        <h3 data-i18n="f2.t">Linux ARM64</h3>
+        <p data-i18n="f2.d">Instala, reinicia pelo disco e desliga via ACPI. Testado com Alpine Linux.</p>
+      </article>
+      <article class="card">
+        <h3 data-i18n="f3.t">Tela embutida</h3>
+        <p data-i18n="f3.d">A tela da VM aparece na própria janela, com teclado, mouse, rolagem e tela cheia.</p>
+      </article>
+      <article class="card">
+        <h3 data-i18n="f4.t">Privacidade por padrão</h3>
+        <p data-i18n="f4.d">Sem telemetria, sem contas, sem portas públicas. Logs ficam no seu Mac. O código está aberto para você auditar.</p>
+      </article>
+      <article class="card">
+        <h3 data-i18n="f5.t">Nativo no macOS</h3>
+        <p data-i18n="f5.d">App SwiftUI com tema claro e escuro, uma janela por VM e interface em português (Brasil e Portugal) e inglês.</p>
+      </article>
+      <article class="card">
+        <h3 data-i18n="f6.t">Seus dados, seu controle</h3>
+        <p data-i18n="f6.d">Cada VM é um pacote <code>.nexvm</code> com disco e configuração. Apagar dados sempre pede confirmação.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="comecar">
+  <div class="wrap">
+    <h2 data-i18n="start.title">Como começar</h2>
+    <ol class="steps">
+      <li>
+        <h3 data-i18n="s1.t">Baixe e instale o NexVM</h3>
+        <p data-i18n="s1.d">Baixe o <code>.dmg</code> abaixo e arraste o NexVM para a pasta Aplicativos.</p>
+      </li>
+      <li>
+        <h3 data-i18n="s2.t">Instale o QEMU</h3>
+        <p data-i18n="s2.d">O NexVM não inclui o QEMU. Com o Homebrew:</p>
+        <pre><code>brew install qemu swtpm</code></pre>
+        <p class="small" data-i18n="s2.n">O <code>swtpm</code> é necessário para Windows 11 (TPM 2.0).</p>
+      </li>
+      <li>
+        <h3 data-i18n="s3.t">Crie sua VM com a sua ISO</h3>
+        <p data-i18n="s3.d">Baixe a ISO do Windows 11 ARM64 no site da Microsoft (é preciso ter uma licença válida) ou de uma distribuição Linux ARM64, e use o assistente de nova máquina.</p>
+      </li>
+    </ol>
+    <p class="note" data-i18n="s.note">Windows 11 também exige um firmware UEFI com Secure Boot, que você instala por conta própria. Veja os detalhes na <a href="https://github.com/GBSOficial/NexVM/blob/main/docs/compatibility/windows-11-arm64.md" rel="noopener">documentação de compatibilidade</a>.</p>
+  </div>
+</section>
+
+<section class="sec" id="status">
+  <div class="wrap">
+    <h2 data-i18n="st.title">Status honesto: preview 0.1</h2>
+    <p class="lead small-lead" data-i18n="st.lead">Só listamos como pronto o que foi testado de verdade.</p>
+    <div class="table" role="table" aria-label="Status de compatibilidade">
+      <div class="row head" role="row"><span role="columnheader" data-i18n="st.c1">Item</span><span role="columnheader" data-i18n="st.c2">Estado</span></div>
+      <div class="row" role="row"><span role="cell">Linux ARM64 (Alpine)</span><span role="cell" class="ok" data-i18n="st.ok">Testado: instala, reinicia e desliga</span></div>
+      <div class="row" role="row"><span role="cell">Windows 11 ARM64</span><span role="cell" class="exp" data-i18n="st.exp">Experimental: o instalador conclui e o sistema instalado chega ao primeiro uso. Desktop, desligamento e rede ainda não foram verificados</span></div>
+      <div class="row" role="row"><span role="cell" data-i18n="st.r3">Área de transferência, áudio, tela redimensionável</span><span role="cell" class="plan" data-i18n="st.plan">Planejado</span></div>
+    </div>
+    <p class="small" data-i18n="st.note">Acompanhe os testes em <a href="https://github.com/GBSOficial/NexVM/tree/main/docs/compatibility" rel="noopener">docs/compatibility</a>.</p>
+  </div>
+</section>
+
+<section class="sec dl" id="download">
+  <div class="wrap dl-in">
+    <h2 data-i18n="dl.title">Baixar o NexVM</h2>
+    <p class="lead small-lead" data-i18n="dl.lead">Versão de teste (preview), assinada com Developer ID e notarizada pela Apple. Para Macs Apple Silicon com macOS 14 ou superior.</p>
+    <a class="btn primary big" href="https://github.com/GBSOficial/NexVM/releases/latest" rel="noopener" data-i18n="dl.btn">Baixar a última versão (.dmg)</a>
+    <p class="small" data-i18n="dl.note">O arquivo fica nas Releases do GitHub, junto com o checksum SHA-256. Quer compilar você mesmo? Veja o <a href="https://github.com/GBSOficial/NexVM#build" rel="noopener">guia de build</a>.</p>
+  </div>
+</section>
+
+<section class="sec" id="faq">
+  <div class="wrap faq">
+    <h2>FAQ</h2>
+    <details><summary data-i18n="q1">É realmente gratuito?</summary><p data-i18n="a1">Sim. O NexVM é open source sob licença MIT. Não existe versão paga, assinatura nem conta.</p></details>
+    <details><summary data-i18n="q2">Preciso de licença do Windows?</summary><p data-i18n="a2">Sim. Você baixa a ISO da Microsoft e usa a sua própria licença. O NexVM não distribui o Windows, não fornece chaves e não burla ativação nem requisitos do sistema.</p></details>
+    <details><summary data-i18n="q3">O NexVM coleta algum dado?</summary><p data-i18n="a3">Não. Não há telemetria nem rede própria. Os logs ficam apenas no seu Mac.</p></details>
+    <details><summary data-i18n="q4">Funciona em Mac Intel?</summary><p data-i18n="a4">Não. O foco é Apple Silicon, rodando sistemas ARM64 com aceleração do hipervisor da Apple.</p></details>
+    <details><summary data-i18n="q5">Há relação com a Microsoft, a Apple ou o QEMU?</summary><p data-i18n="a5">Não. Windows é marca da Microsoft, macOS e Apple Silicon são marcas da Apple, e QEMU é um projeto independente. O NexVM é um projeto independente que usa o QEMU.</p></details>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <p>NexVM · <span data-i18n="foot.by">por</span> <a href="https://github.com/GBSOficial" rel="noopener">GBSOficial</a> · MIT</p>
+    <p>
+      <a href="https://github.com/GBSOficial/NexVM" rel="noopener">GitHub</a> ·
+      <a href="https://github.com/GBSOficial/NexVM/issues" rel="noopener">Issues</a> ·
+      <a href="https://github.com/GBSOficial/NexVM/blob/main/SECURITY.md" rel="noopener" data-i18n="foot.sec">Segurança</a> ·
+      <a href="https://github.com/GBSOficial/NexVM/blob/main/LICENSE" rel="noopener" data-i18n="foot.lic">Licença</a>
+    </p>
+  </div>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
