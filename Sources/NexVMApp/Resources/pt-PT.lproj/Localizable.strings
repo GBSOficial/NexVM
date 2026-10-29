@@ -3,7 +3,6 @@
 "library.empty.title" = "Nenhuma máquina virtual";
 "library.empty.description" = "Crie uma VM para começar. Fornece a sua própria ISO.";
 "detail.noselection" = "Selecione uma máquina virtual";
-"detail.notrunnable" = "Iniciar VMs ainda não está implementado (o motor QEMU está em desenvolvimento).";
 "action.newvm" = "Nova VM";
 "action.create" = "Criar";
 "action.cancel" = "Cancelar";
@@ -23,3 +22,13 @@
 "delete.confirm" = "Eliminar definitivamente";
 "delete.message %@" = "“%@” e o disco virtual serão eliminados definitivamente. Esta ação não pode ser anulada.";
 "error.title" = "Ocorreu um erro";
+"action.start" = "Iniciar";
+"action.shutdown" = "Desligar";
+"action.forcestop" = "Forçar paragem";
+"state.starting" = "A iniciar";
+"state.running" = "Em execução";
+"state.stopping" = "A desligar";
+"state.paused" = "Em pausa";
+"state.error" = "Erro";
+"error.noqemu" = "QEMU não encontrado. Instale-o (por exemplo com o Homebrew) para o NexVM iniciar VMs.";
+"detail.display" = "A VM abre numa janela própria do QEMU. Desligar envia um pedido de desligamento ACPI; o sistema convidado tem de o tratar. Forçar paragem termina a VM de imediato e pode perder dados não guardados.";

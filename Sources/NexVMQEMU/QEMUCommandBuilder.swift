@@ -64,8 +64,10 @@ public struct QEMUCommandBuilder: Sendable {
         a += ["-drive", "if=pflash,format=raw,unit=0,readonly=on,file=\(e(firmware.code.path))"]
         a += ["-drive", "if=pflash,format=raw,unit=1,file=\(e(firmware.vars.path))"]
 
-        // Display and input. ramfb is what Windows/Linux UEFI can drive without guest drivers.
-        a += ["-device", "ramfb", "-device", "qemu-xhci", "-device", "usb-kbd", "-device", "usb-tablet"]
+        // Display and input. Windows has no inbox virtio-gpu driver, so it gets ramfb (UEFI
+        // framebuffer). Linux gets virtio-gpu so the kernel console/desktop render after boot.
+        a += ["-device", c.guest == .windows11ARM64 ? "ramfb" : "virtio-gpu-pci"]
+        a += ["-device", "qemu-xhci", "-device", "usb-kbd", "-device", "usb-tablet"]
 
         for (i, disk) in c.disks.enumerated() {
             let path = try PathValidator.resolve(disk.relativePath, under: bundle.url)

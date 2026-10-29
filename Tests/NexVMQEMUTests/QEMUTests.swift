@@ -26,6 +26,7 @@ final class QEMUCommandBuilderTests: XCTestCase {
         XCTAssertTrue(a.contains("4096M"))
         XCTAssertTrue(a.contains { $0.hasPrefix("nvme,drive=disk0") })
         XCTAssertTrue(a.contains("e1000e,netdev=net0"))
+        XCTAssertTrue(a.contains("ramfb") && !a.contains("virtio-gpu-pci"))
         XCTAssertFalse(a.contains { $0.contains("hostfwd") })
     }
 
@@ -33,6 +34,7 @@ final class QEMUCommandBuilderTests: XCTestCase {
         let a = try build(config(guest: .linuxARM64, iface: .virtioBlk))
         XCTAssertTrue(a.contains("virtio-blk-pci,drive=disk0"))
         XCTAssertTrue(a.contains("virtio-net-pci,netdev=net0"))
+        XCTAssertTrue(a.contains("virtio-gpu-pci") && !a.contains("ramfb"))
     }
 
     func testCommasInUserValuesAreEscapedAndNeverSplitArguments() throws {

@@ -22,7 +22,12 @@ public struct HostResources: Equatable, Sendable {
         #else
         let arm = false
         #endif
-        let freeBytes = (try? volume.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
+        // The volume may not exist yet (new library): measure its nearest existing ancestor.
+        var probe = volume
+        while !FileManager.default.fileExists(atPath: probe.path), probe.path != "/" {
+            probe = probe.deletingLastPathComponent()
+        }
+        let freeBytes = (try? probe.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
             .volumeAvailableCapacityForImportantUsage ?? 0
         return HostResources(
             physicalMemoryMiB: memMiB,

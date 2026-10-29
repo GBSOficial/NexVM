@@ -1,5 +1,6 @@
 import SwiftUI
 import NexVMCore
+import NexVMEngine
 
 func L(_ key: String) -> String { Bundle.module.localizedString(forKey: key, value: key, table: nil) }
 
@@ -32,11 +33,12 @@ struct LibraryView: View {
             }
         } detail: {
             if let item = model.items.first(where: { $0.id == selection }) {
-                DetailView(item: item) {
-                    model.remove(item); selection = nil
-                } onDelete: {
-                    pendingDelete = item
-                }
+                DetailView(item: item, state: model.state(of: item), qemuAvailable: model.qemuAvailable,
+                           onStart: { model.start(item) },
+                           onShutdown: { model.requestShutdown(item) },
+                           onForceStop: { model.forceStop(item) },
+                           onRemove: { model.remove(item); selection = nil },
+                           onDelete: { pendingDelete = item })
             } else {
                 Text(L("detail.noselection")).foregroundStyle(.secondary)
             }
@@ -64,8 +66,28 @@ struct LibraryView: View {
 
 struct DetailView: View {
     let item: VMItem
+    let state: VMRuntimeState
+    let qemuAvailable: Bool
+    var onStart: () -> Void
+    var onShutdown: () -> Void
+    var onForceStop: () -> Void
     var onRemove: () -> Void
     var onDelete: () -> Void
+
+    private var idle: Bool {
+        switch state { case .stopped, .error: true; default: false }
+    }
+
+    private var stateText: String {
+        switch state {
+        case .stopped: L("state.stopped")
+        case .starting: L("state.starting")
+        case .running: L("state.running")
+        case .stopping: L("state.stopping")
+        case .paused: L("state.paused")
+        case .error(let m): "\(L("state.error")): \(m)"
+        }
+    }
 
     var body: some View {
         let c = item.configuration
@@ -75,14 +97,23 @@ struct DetailView: View {
                 LabeledContent(L("field.cpus"), value: "\(c.cpuCount)")
                 LabeledContent(L("field.memory"), value: "\(c.memoryMiB) MiB")
                 LabeledContent(L("field.disk"), value: "\(c.disks.first?.sizeGiB ?? 0) GiB")
-                LabeledContent(L("field.state"), value: L("state.stopped"))
+                LabeledContent(L("field.state"), value: stateText)
             }
             Section {
-                Text(L("detail.notrunnable")).foregroundStyle(.secondary)
+                HStack {
+                    Button(L("action.start"), systemImage: "play.fill", action: onStart)
+                        .disabled(!idle || !qemuAvailable)
+                    Button(L("action.shutdown"), systemImage: "power", action: onShutdown)
+                        .disabled(state != .running)
+                    Button(L("action.forcestop"), systemImage: "xmark.octagon", role: .destructive, action: onForceStop)
+                        .disabled(idle)
+                }
+                if !qemuAvailable { Text(L("error.noqemu")).foregroundStyle(.secondary) }
+                Text(L("detail.display")).font(.footnote).foregroundStyle(.secondary)
             }
             Section {
-                Button(L("action.remove"), action: onRemove)
-                Button(L("action.delete"), role: .destructive, action: onDelete)
+                Button(L("action.remove"), action: onRemove).disabled(!idle)
+                Button(L("action.delete"), role: .destructive, action: onDelete).disabled(!idle)
             }
         }
         .formStyle(.grouped)

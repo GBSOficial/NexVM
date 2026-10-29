@@ -19,6 +19,8 @@ A guest is **Tested** only after: real boot, install, reboot with data kept, and
 - A second start of the same VM is rejected; `forceStop` ends only that process; lock is released; NVRAM (`metadata/vars.fd`) persists and a second boot works.
 - Found by this test: `-name ...,process=` is unsupported on macOS (removed).
 - `testAlpineBootsToLoginPrompt`: `alpine-virt-3.24.3-aarch64.iso` (sha256 e3460308…8f, verified against the official `latest-releases.yaml`) boots from the install-media path and reaches `login:` on the serial console in ~11 s, 2 vCPU / 1 GiB, virtio-blk + virtio-net, HVF. ISO stays unmodified.
+- **GUI run (2026-10-29, manual via the app, Alpine live ISO):** New VM sheet → Start opens the QEMU window (TianoCore → GRUB → Alpine console `localhost login:`, kernel 6.18 aarch64, virtio-gpu); state shows Running; Force Stop returns to Stopped and closes the window. Shut Down sent ACPI and the state stayed "Shutting down" because the live ISO does not act on power-button events — Force Stop was needed.
+- Keyboard: keystrokes reach the guest (login/password prompts respond) but synthetic fast typing dropped characters (`root` → `ot`). Not yet verified with real human typing; cause unknown. Mouse not verified.
 - NOT shown: install to disk and reboot with persisted data, graphical display, keyboard/mouse input, clean ACPI shutdown. Windows has not been attempted.
 
 ## Unit-tested (no guest involved)

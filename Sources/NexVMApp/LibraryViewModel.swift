@@ -3,6 +3,8 @@ import Observation
 import NexVMCore
 import NexVMStorage
 import NexVMDiagnostics
+import NexVMEngine
+import NexVMQEMU
 
 struct VMItem: Identifiable, Equatable {
     let bundle: VMBundle
@@ -25,17 +27,67 @@ final class LibraryViewModel {
     private(set) var items: [VMItem] = []
     private(set) var failedBundles: [String] = []
     var errorMessage: String?
-    let host = HostResources.current()
+    private(set) var states: [UUID: VMRuntimeState] = [:]
+    let host: HostResources
+    /// nil when QEMU/firmware is not found; start buttons are disabled then.
+    let engine: QEMUEngine?
+    let qemuAvailable: Bool
 
     private let library: VMLibrary
     private let logger: StructuredLogger
 
     init(library: VMLibrary = VMLibrary(root: VMLibrary.defaultRoot)) {
         self.library = library
+        self.host = HostResources.current(volume: library.root)
         let logURL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs/NexVM/nexvm.log")
         self.logger = StructuredLogger(fileURL: logURL)
+        if let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil {
+            self.engine = QEMUEngine(installation: install, logger: logger)
+            self.qemuAvailable = true
+        } else {
+            self.engine = nil
+            self.qemuAvailable = false
+        }
         reload()
+        startPolling()
+    }
+
+    func state(of item: VMItem) -> VMRuntimeState { states[item.id] ?? .stopped }
+
+    private func startPolling() {
+        guard let engine else { return }
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self else { return }
+                for item in self.items {
+                    let s = await engine.state(of: item.id)
+                    if self.states[item.id] != s { self.states[item.id] = s }
+                }
+            }
+        }
+    }
+
+    func start(_ item: VMItem) {
+        guard let engine else { errorMessage = L("error.noqemu"); return }
+        states[item.id] = .starting
+        Task {
+            do { try await engine.start(item.configuration, bundleURL: item.bundle.url) } catch {
+                errorMessage = "\(error)"
+            }
+            states[item.id] = await engine.state(of: item.id)
+        }
+    }
+
+    func requestShutdown(_ item: VMItem) {
+        guard let engine else { return }
+        Task { do { try await engine.requestShutdown(vmID: item.id) } catch { errorMessage = "\(error)" } }
+    }
+
+    func forceStop(_ item: VMItem) {
+        guard let engine else { return }
+        Task { do { try await engine.forceStop(vmID: item.id) } catch { errorMessage = "\(error)" } }
     }
 
     func reload() {

@@ -3,7 +3,6 @@
 "library.empty.title" = "No virtual machines";
 "library.empty.description" = "Create a VM to get started. You provide your own ISO.";
 "detail.noselection" = "Select a virtual machine";
-"detail.notrunnable" = "Starting VMs is not implemented yet (QEMU backend is in progress).";
 "action.newvm" = "New VM";
 "action.create" = "Create";
 "action.cancel" = "Cancel";
@@ -23,3 +22,13 @@
 "delete.confirm" = "Delete Permanently";
 "delete.message %@" = "“%@” and its virtual disk will be permanently deleted. This cannot be undone.";
 "error.title" = "Something went wrong";
+"action.start" = "Start";
+"action.shutdown" = "Shut Down";
+"action.forcestop" = "Force Stop";
+"state.starting" = "Starting";
+"state.running" = "Running";
+"state.stopping" = "Stopping";
+"state.paused" = "Paused";
+"state.error" = "Error";
+"error.noqemu" = "QEMU was not found. Install it (for example with Homebrew) so NexVM can start VMs.";
+"detail.display" = "The VM opens in its own QEMU window. Shut Down sends an ACPI power-off request; the guest must handle it. Force Stop ends the VM immediately and can lose unsaved data.";

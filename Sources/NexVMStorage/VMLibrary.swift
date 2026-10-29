@@ -58,8 +58,12 @@ public struct VMLibrary: Sendable {
 
     public init(root: URL) { self.root = root }
 
+    /// `$NEXVM_LIBRARY_PATH` (absolute) overrides the default, e.g. to keep large disks on an external volume.
     public static var defaultRoot: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        if let p = ProcessInfo.processInfo.environment["NEXVM_LIBRARY_PATH"], p.hasPrefix("/") {
+            return URL(fileURLWithPath: p, isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/NexVM/Machines", isDirectory: true)
     }
 
