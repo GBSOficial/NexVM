@@ -42,6 +42,11 @@ public struct ResourceRecommendation: Equatable, Sendable {
     public var cpuCount: Int
     public var memoryMiB: Int
     public var diskGiB: Int
+    public init(cpuCount: Int, memoryMiB: Int, diskGiB: Int) {
+        self.cpuCount = cpuCount
+        self.memoryMiB = memoryMiB
+        self.diskGiB = diskGiB
+    }
 }
 
 public enum ResourcePolicy {

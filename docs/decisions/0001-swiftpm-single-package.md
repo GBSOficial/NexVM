@@ -12,3 +12,6 @@ One root `Package.swift` with library targets (`NexVMCore`, `NexVMStorage`, `Nex
 - `swift build` / `swift test` work with only Xcode command line tools; no paid Apple account needed to build and run locally.
 - No `.xcodeproj` yet. If entitlements, asset catalogs or Sparkle-style updating need it, add an Xcode project that depends on this package (new ADR).
 - Test coverage and module boundaries are enforced by SwiftPM target dependencies.
+
+## Addendum (2026-10-29): app icon
+SwiftPM compiles `Assets.xcassets` (logos) but does not apply an `AppIcon` set to the app bundle. `scripts/package-app.sh` therefore builds `AppIcon.icns` from the committed `AppIcon.appiconset` with `iconutil` and sets `CFBundleIconFile`. A future Xcode project would use the catalog directly.

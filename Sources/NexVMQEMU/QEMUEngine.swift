@@ -95,11 +95,22 @@ public actor QEMUEngine: VirtualMachineEngine {
         }
     }
 
+    public func restart(vmID: UUID) async throws {
+        guard let s = sessions[vmID], s.state == .running, let qmp = s.qmp else { throw EngineError.notRunning(vmID) }
+        let r = await qmp.send(.systemReset)
+        if case .failure(_, let d, _) = r { throw EngineError.launchFailed("reset rejected: \(d)") }
+    }
+
     public func forceStop(vmID: UUID) async throws {
         guard let s = sessions[vmID], s.state != .stopped else { throw EngineError.notRunning(vmID) }
         sessions[vmID]?.shutdownRequested = true
         sessions[vmID]?.state = .stopping
         _ = await s.process.terminate(grace: 5)
+    }
+
+    /// IDs of VMs that currently have a live QEMU process (any non-stopped state).
+    public func activeVMIDs() -> [UUID] {
+        sessions.compactMap { $0.value.state == .stopped ? nil : $0.key }
     }
 
     /// Waits until the VM reaches `.stopped` (or `.error`), up to `timeout` seconds.

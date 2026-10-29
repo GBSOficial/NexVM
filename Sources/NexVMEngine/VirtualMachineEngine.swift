@@ -24,6 +24,8 @@ public protocol VirtualMachineEngine: Sendable {
     func start(_ configuration: VMConfiguration, bundleURL: URL) async throws
     /// Asks the guest to power off (ACPI). Does not kill the VM.
     func requestShutdown(vmID: UUID) async throws
+    /// Resets the guest like a hardware reset button (not a graceful reboot). VM keeps running.
+    func restart(vmID: UUID) async throws
     /// Terminates only the process this engine started for `vmID`.
     func forceStop(vmID: UUID) async throws
     func state(of vmID: UUID) async -> VMRuntimeState

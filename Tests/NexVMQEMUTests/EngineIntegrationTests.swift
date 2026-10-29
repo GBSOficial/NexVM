@@ -51,6 +51,13 @@ final class EngineIntegrationTests: XCTestCase {
         }
         XCTAssertTrue(output.contains("UEFI") || output.contains("BdsDxe"), "no firmware output: \(output.prefix(200))")
 
+        // Hardware-style reset keeps the VM alive and the firmware boots again.
+        try await engine.restart(vmID: c.id)
+        let afterReset = await engine.state(of: c.id)
+        XCTAssertEqual(afterReset, .running)
+        let active = await engine.activeVMIDs()
+        XCTAssertEqual(active, [c.id])
+
         try await engine.forceStop(vmID: c.id)
         let stopped = await engine.waitUntilStopped(vmID: c.id, timeout: 10)
         XCTAssertTrue(stopped)

@@ -23,5 +23,8 @@ A guest is **Tested** only after: real boot, install, reboot with data kept, and
 - Keyboard: keystrokes reach the guest (login/password prompts respond) but synthetic fast typing dropped characters (`root` → `ot`). Not yet verified with real human typing; cause unknown. Mouse not verified.
 - NOT shown: install to disk and reboot with persisted data, graphical display, keyboard/mouse input, clean ACPI shutdown. Windows has not been attempted.
 
+## UI verification (2026-10-29, manual, dark and light)
+Library cards, empty state, 4-step wizard with a real ISO, VM window, Settings (5 tabs), Diagnostics, delete confirmation, quit-with-running-VM (cancel keeps VM; confirm stops QEMU, no orphan), minimum window size reflow. Not checked: VoiceOver, Full Keyboard Access, multi-monitor/Split View, larger text sizes.
+
 ## Unit-tested (no guest involved)
 QEMU argument construction, QMP parsing, process lifecycle (SIGTERM→SIGKILL on own pid), VM bundle persistence, path validation, resource limits. These do **not** prove any guest boots.

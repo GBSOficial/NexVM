@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Observation
 import NexVMCore
 import NexVMStorage
@@ -21,74 +22,73 @@ struct NewVMRequest {
     var isoPath: String?
 }
 
+/// UI-facing state. The QEMU lifecycle lives in `QEMUEngine` (an actor); this class only
+/// mirrors its state on the main actor and forwards user intent.
 @MainActor
 @Observable
 final class LibraryViewModel {
     private(set) var items: [VMItem] = []
     private(set) var failedBundles: [String] = []
-    var errorMessage: String?
     private(set) var states: [UUID: VMRuntimeState] = [:]
-    let host: HostResources
-    /// nil when QEMU/firmware is not found; start buttons are disabled then.
-    let engine: QEMUEngine?
-    let qemuAvailable: Bool
+    private(set) var host: HostResources
+    var errorMessage: String?
+    var selection: UUID?
+    var showingNewVM = false
+    var pendingDeletion: VMItem?
 
+    let libraryRoot: URL
+    let logURL: URL
+    let qemuPath: String?
+    let qemuAvailable: Bool
+    private let engine: QEMUEngine?
     private let library: VMLibrary
     private let logger: StructuredLogger
 
     init(library: VMLibrary = VMLibrary(root: VMLibrary.defaultRoot)) {
         self.library = library
+        self.libraryRoot = library.root
         self.host = HostResources.current(volume: library.root)
-        let logURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/NexVM/nexvm.log")
-        self.logger = StructuredLogger(fileURL: logURL)
+        self.logURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/NexVM/nexvm.log")
+        let logger = StructuredLogger(fileURL: logURL)
+        self.logger = logger
         if let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil {
             self.engine = QEMUEngine(installation: install, logger: logger)
             self.qemuAvailable = true
+            self.qemuPath = install.system.path
         } else {
             self.engine = nil
             self.qemuAvailable = false
+            self.qemuPath = nil
         }
         reload()
         startPolling()
     }
 
+    // MARK: Queries
+
+    func item(_ id: UUID?) -> VMItem? { id.flatMap { id in items.first { $0.id == id } } }
     func state(of item: VMItem) -> VMRuntimeState { states[item.id] ?? .stopped }
+    func state(of id: UUID) -> VMRuntimeState { states[id] ?? .stopped }
 
-    private func startPolling() {
-        guard let engine else { return }
-        Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(500))
-                guard let self else { return }
-                for item in self.items {
-                    let s = await engine.state(of: item.id)
-                    if self.states[item.id] != s { self.states[item.id] = s }
-                }
-            }
-        }
+    var runningItems: [VMItem] { items.filter { !state(of: $0).isIdle } }
+
+    func refreshHost() { host = HostResources.current(volume: libraryRoot) }
+
+    /// Last lines of the VM's qemu.log (stdout/stderr of the QEMU process).
+    func qemuLogTail(for item: VMItem, maxBytes: Int = 4000) -> String {
+        let url = item.bundle.logsURL.appendingPathComponent("qemu.log")
+        guard let h = try? FileHandle(forReadingFrom: url) else { return "" }
+        defer { try? h.close() }
+        let size = (try? h.seekToEnd()) ?? 0
+        try? h.seek(toOffset: size > UInt64(maxBytes) ? size - UInt64(maxBytes) : 0)
+        return String(decoding: (try? h.readToEnd()) ?? Data(), as: UTF8.self)
     }
 
-    func start(_ item: VMItem) {
-        guard let engine else { errorMessage = L("error.noqemu"); return }
-        states[item.id] = .starting
-        Task {
-            do { try await engine.start(item.configuration, bundleURL: item.bundle.url) } catch {
-                errorMessage = "\(error)"
-            }
-            states[item.id] = await engine.state(of: item.id)
-        }
+    func readAppLog() -> [LogEntry] {
+        ((try? LogReader.read(fileURL: logURL)) ?? []).reversed()
     }
 
-    func requestShutdown(_ item: VMItem) {
-        guard let engine else { return }
-        Task { do { try await engine.requestShutdown(vmID: item.id) } catch { errorMessage = "\(error)" } }
-    }
-
-    func forceStop(_ item: VMItem) {
-        guard let engine else { return }
-        Task { do { try await engine.forceStop(vmID: item.id) } catch { errorMessage = "\(error)" } }
-    }
+    // MARK: Library
 
     func reload() {
         do {
@@ -97,13 +97,10 @@ final class LibraryViewModel {
                 (try? library.load(b)).map { VMItem(bundle: b, configuration: $0) }
             }
             failedBundles = listing.failures.map { $0.url.lastPathComponent }
+            if let sel = selection, !items.contains(where: { $0.id == sel }) { selection = nil }
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-
-    func recommendation(for guest: GuestOS) -> ResourceRecommendation {
-        ResourcePolicy.recommendation(for: guest, host: host)
     }
 
     /// Creates the bundle, config and an empty sparse disk. Does not start anything.
@@ -117,27 +114,23 @@ final class LibraryViewModel {
             cpuCount: r.cpuCount, memoryMiB: r.memoryMiB, disks: [disk],
             installMedia: r.isoPath.map(InstallMedia.init(path:)))
 
+        refreshHost()
         let issues = ConfigurationValidator.validate(config, host: host)
         guard issues.isEmpty else {
             errorMessage = issues.map(\.description).joined(separator: "\n")
             return false
         }
-        if let iso = r.isoPath {
-            do { try ISOValidator.validate(path: iso) } catch {
-                errorMessage = "ISO check failed: \(error)"
-                return false
-            }
-        }
         do {
             let bundle = try library.create(config)
             do { try DiskImageCreator.createSparseRaw(in: bundle, relativePath: disk.relativePath, sizeGiB: disk.sizeGiB) } catch {
-                // Roll back the bundle we just created (confirmed by construction: it is ours).
+                // Roll back the bundle we just created (it is ours by construction).
                 try? library.deleteData(of: bundle, confirmation: DeletionConfirmation(confirmingDeletionOf: config.id))
                 throw error
             }
             let id = config.id
             Task { await logger.log(.info, "library", "created VM", vmID: id) }
             reload()
+            selection = config.id
             return true
         } catch {
             errorMessage = "\(error)"
@@ -157,5 +150,65 @@ final class LibraryViewModel {
             try library.deleteData(of: item.bundle, confirmation: DeletionConfirmation(confirmingDeletionOf: item.id))
             reload()
         } catch { errorMessage = "\(error)" }
+    }
+
+    func revealInFinder(_ item: VMItem) { NSWorkspace.shared.activateFileViewerSelecting([item.bundle.url]) }
+    func revealLibrary() {
+        try? FileManager.default.createDirectory(at: libraryRoot, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting([libraryRoot])
+    }
+    func revealLog() {
+        if FileManager.default.fileExists(atPath: logURL.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([logURL])
+        } else {
+            NSWorkspace.shared.open(logURL.deletingLastPathComponent())
+        }
+    }
+
+    // MARK: Lifecycle (forwarded to the engine)
+
+    func start(_ item: VMItem) {
+        guard let engine else { errorMessage = L("error.noqemu"); return }
+        guard state(of: item).isIdle else { return }
+        states[item.id] = .starting
+        Task {
+            do { try await engine.start(item.configuration, bundleURL: item.bundle.url) } catch {
+                errorMessage = "\(error)"
+            }
+            states[item.id] = await engine.state(of: item.id)
+        }
+    }
+
+    func requestShutdown(_ item: VMItem) { perform { try await $0.requestShutdown(vmID: item.id) } }
+    func restart(_ item: VMItem) { perform { try await $0.restart(vmID: item.id) } }
+    func forceStop(_ item: VMItem) { perform { try await $0.forceStop(vmID: item.id) } }
+
+    private func perform(_ op: @escaping @Sendable (QEMUEngine) async throws -> Void) {
+        guard let engine else { return }
+        Task { do { try await op(engine) } catch { errorMessage = "\(error)" } }
+    }
+
+    /// Used at quit time: force-stops every VM this app started and waits for them.
+    func stopAll() async {
+        guard let engine else { return }
+        for id in await engine.activeVMIDs() {
+            try? await engine.forceStop(vmID: id)
+            _ = await engine.waitUntilStopped(vmID: id, timeout: 10)
+        }
+        await logger.close()
+    }
+
+    private func startPolling() {
+        guard let engine else { return }
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self else { return }
+                for item in self.items {
+                    let s = await engine.state(of: item.id)
+                    if self.states[item.id] != s { self.states[item.id] = s }
+                }
+            }
+        }
     }
 }
