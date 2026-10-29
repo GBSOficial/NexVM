@@ -1,5 +1,6 @@
 # Changelog
 ## Unreleased
+- TPM: `tpm-tis-device,ppi=off` (HVF rejects the PPI region); swtpm lifecycle integration test.
 - Windows 11 groundwork: per-VM swtpm TPM 2.0 management, Windows start blocked with a clear message when swtpm is missing, wizard warning, `docs/compatibility/windows-11-arm64.md`.
 - Eject install ISO (VM window and context menu); primary disk gets `bootindex=1`; selecting the VM when started so the Virtual Machine menu works.
 - Linux install/reboot evidence and `tools/alpine-serial-install.py`.

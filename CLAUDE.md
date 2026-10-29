@@ -48,7 +48,7 @@ Menor privilégio, sem sudo, sem kext, sem portas públicas (rede `userNAT` sem 
 
 ## Limitações conhecidas
 - Virtualization.framework não é backend: Windows guest não é oficialmente suportado por ela (ADR-0002).
-- TPM 2.0 para Windows 11: engine gerencia `swtpm` por VM (`SwtpmLaunch`, estado em `metadata/tpm`) e RECUSA iniciar Windows sem ele; `swtpm` ainda não instalado nesta máquina e nada de Windows foi testado (ver docs/compatibility/windows-11-arm64.md). Não implementar bypass de requisitos.
+- TPM 2.0 para Windows 11: engine gerencia `swtpm` por VM (`SwtpmLaunch`, estado em `metadata/tpm`) e RECUSA iniciar Windows sem ele; `swtpm` 0.10.2 instalado no SSD e validado com QEMU real (TPM no firmware; `tpm-tis-device` exige `ppi=off` sob HVF), mas nenhum Windows foi bootado (ver docs/compatibility/windows-11-arm64.md). Não implementar bypass de requisitos.
 - Drivers: Windows não tem driver virtio inbox → disco NVMe e NIC e1000e (a validar em boot real).
 - Display: `-display cocoa` do QEMU (janela separada); display embutido e tela cheia dentro do NexVM não existem (a janela da VM diz isso). "Restart" = `system_reset` (reset de hardware), não reboot gracioso.
 - Ícone/marca: master do ícone é upscale de ~257 px e SVGs são reconstruções aproximadas (ver assets/brand/README.md); refazer em resolução nativa antes de release.

@@ -101,7 +101,8 @@ public struct QEMUCommandBuilder: Sendable {
         if let tpm = tpmSocket {
             a += ["-chardev", "socket,id=chrtpm,path=\(e(tpm.path))"]
             a += ["-tpmdev", "emulator,id=tpm0,chardev=chrtpm"]
-            a += ["-device", "tpm-tis-device,tpmdev=tpm0"]
+            // ppi=off: the PPI RAM region (1 KB) is not 16 KB-aligned and HVF on Apple Silicon rejects it (HV_BAD_ARGUMENT).
+            a += ["-device", "tpm-tis-device,tpmdev=tpm0,ppi=off"]
         }
 
         a += ["-qmp", "unix:\(e(qmpSocket.path)),server=on,wait=off"]

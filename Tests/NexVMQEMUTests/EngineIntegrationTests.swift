@@ -135,6 +135,52 @@ final class EngineIntegrationTests: XCTestCase {
         XCTAssertEqual(end, .stopped)   // clean exit, not .error
     }
 
+    /// Windows-type VM (no OS installed): engine must start swtpm, wire it to QEMU, boot the firmware
+    /// under HVF, and leave no swtpm process behind after the VM stops.
+    func testWindowsVMStartsSwtpmAndCleansUp() async throws {
+        guard let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil,
+              install.swtpm != nil else { throw XCTSkip("QEMU or swtpm missing") }
+        let library = VMLibrary(root: root.appendingPathComponent("lib"))
+        let c = VMConfiguration(name: "win-tpm", guest: .windows11ARM64, cpuCount: 2, memoryMiB: 2048,
+                                disks: [DiskConfiguration(relativePath: "disks/main.img", sizeGiB: 8, format: .raw, interface: .nvme)])
+        let bundle = try library.create(c)
+        try DiskImageCreator.createSparseRaw(in: bundle, relativePath: "disks/main.img", sizeGiB: 8)
+        let serial = bundle.logsURL.appendingPathComponent("serial.log")
+        let engine = QEMUEngine(installation: install, options: QEMUBuildOptions(headless: true, serialLog: serial))
+
+        try await engine.start(c, bundleURL: bundle.url)
+        let running = await engine.state(of: c.id)
+        XCTAssertEqual(running, .running)
+        let tpmDir = bundle.metadataURL.appendingPathComponent("tpm").path
+        XCTAssertTrue(Self.pgrep("swtpm socket.*\(tpmDir)"), "swtpm should be running for this VM")
+
+        var out = ""
+        for _ in 0..<100 {
+            out = (try? String(contentsOf: serial, encoding: .utf8)) ?? ""
+            if out.contains("UEFI") || out.contains("BdsDxe") { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTAssertTrue(out.contains("UEFI") || out.contains("BdsDxe"), "firmware did not run: \(out.prefix(200))")
+        // TPM state files are created by swtpm inside the bundle.
+        try await Task.sleep(for: .seconds(1))
+        let tpmFiles = (try? FileManager.default.contentsOfDirectory(atPath: tpmDir)) ?? []
+        XCTAssertFalse(tpmFiles.isEmpty, "swtpm wrote no state in \(tpmDir)")
+
+        try await engine.forceStop(vmID: c.id)
+        _ = await engine.waitUntilStopped(vmID: c.id, timeout: 10)
+        try await Task.sleep(for: .seconds(1))
+        XCTAssertFalse(Self.pgrep("swtpm socket.*\(tpmDir)"), "swtpm outlived its VM")
+    }
+
+    private static func pgrep(_ pattern: String) -> Bool {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        p.arguments = ["-f", pattern]
+        p.standardOutput = FileHandle.nullDevice
+        try? p.run(); p.waitUntilExit()
+        return p.terminationStatus == 0
+    }
+
     func testStartFailsCleanlyWithoutFirmware() async throws {
         let engine = QEMUEngine(installation: QEMUInstallation(system: URL(fileURLWithPath: "/nonexistent/qemu")))
         let c = VMConfiguration(name: "x", guest: .linuxARM64, cpuCount: 1, memoryMiB: 1024,

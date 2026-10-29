@@ -18,6 +18,14 @@ args = [f"{Q}/bin/qemu-system-aarch64", "-name", "nexvm-serial", "-nodefaults", 
   *([] if os.environ.get("NOISO") else ["-drive", f"if=none,id=cd0,media=cdrom,readonly=on,file={ISO}", "-device", "usb-storage,drive=cd0,bootindex=0"]),
   "-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0",
   "-chardev", "stdio,id=s0,signal=off", "-serial", "chardev:s0", "-display", "none", "-monitor", "none"]
+tpm = None
+if os.environ.get("TPM"):
+    td = f"/tmp/nxtpm-{os.getpid()}"; os.makedirs(td + "/state", exist_ok=True)
+    tpm = subprocess.Popen([f"{Q}/bin/swtpm", "socket", "--tpm2", "--tpmstate", f"dir={td}/state",
+                            "--ctrl", f"type=unixio,path={td}/tpm.sock", "--terminate"])
+    while not os.path.exists(f"{td}/tpm.sock"): time.sleep(0.1)
+    args[-6:-6] = ["-chardev", f"socket,id=chrtpm,path={td}/tpm.sock", "-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
+                   "-device", "tpm-tis-device,tpmdev=tpm0,ppi=off"]
 p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 buf = b""
 log = open(f"{B}/tmp/serial_install.log", "wb")
@@ -52,8 +60,8 @@ try:
     print("login result:", out[-40:].replace("\n", "\\n"))
     if not out.rstrip().endswith("#"): raise SystemExit("could not log in on serial")
     if os.environ.get("CHECK"):
-        send("cat /root/nexvm-marker; uname -r; hostname; echo CHECK-$((1+1))-END\n")
-        print(re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", read_until(r"CHECK-2-END\r?\n", 30))[-200:])
+        send("ls /dev/tpm* /sys/class/tpm 2>&1; cat /sys/class/tpm/tpm0/tpm_version_major 2>&1; dmesg | grep -i tpm | head -5; echo CHECK-$((1+1))-END\n") if os.environ.get("TPM") else send("cat /root/nexvm-marker; uname -r; hostname; echo CHECK-$((1+1))-END\n")
+        print(re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", read_until(r"CHECK-2-END\r?\n", 30))[-1200:])
         raise SystemExit(0)
     cmds = sys.argv[2:]
     for c in cmds:
@@ -62,6 +70,7 @@ try:
     print("install script finished")
 finally:
     time.sleep(1)
+    if tpm: tpm.terminate()
     p.terminate()
     try: p.wait(10)
     except Exception: p.kill()

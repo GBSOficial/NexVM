@@ -60,7 +60,7 @@ final class QEMUCommandBuilderTests: XCTestCase {
         let c = config(guest: .windows11ARM64, iface: .nvme)
         XCTAssertFalse(try build(c).contains { $0.contains("tpm") })
         let withTPM = try build(c, tpm: URL(fileURLWithPath: "/tmp/tpm.sock"))
-        XCTAssertTrue(withTPM.contains("tpm-tis-device,tpmdev=tpm0"))
+        XCTAssertTrue(withTPM.contains("tpm-tis-device,tpmdev=tpm0,ppi=off"))
     }
 
     func testQMPIsUnixSocketOnly() throws {
