@@ -21,7 +21,7 @@ struct VMWindowView: View {
     private func content(_ item: VMItem) -> some View {
         let c = item.configuration
         let state = model.state(of: item)
-        let cmd = LifecycleCommands(state: state, qemuAvailable: model.qemuAvailable)
+        let cmd = LifecycleCommands(state: state, startBlocked: model.startBlocker(for: c.guest) != nil)
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 14) {
@@ -84,7 +84,7 @@ struct VMWindowView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button { model.start(item) } label: { Label(L("action.run"), systemImage: "play.fill") }
-                    .disabled(!cmd.canStart).help(model.qemuAvailable ? L("help.start") : L("error.noqemu"))
+                    .disabled(!cmd.canStart).help(model.startBlocker(for: c.guest) ?? L("help.start"))
                 Button { model.requestShutdown(item) } label: { Label(L("action.shutdown"), systemImage: "power") }
                     .disabled(!cmd.canShutdown).help(L("help.shutdown"))
                 Button { model.restart(item) } label: { Label(L("action.restart"), systemImage: "arrow.clockwise") }

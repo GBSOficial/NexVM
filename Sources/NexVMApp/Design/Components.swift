@@ -85,8 +85,8 @@ func formatMemory(_ mib: Int) -> String {
 /// Primary lifecycle control shared by cards, the VM window and menus.
 struct LifecycleCommands {
     let state: VMRuntimeState
-    let qemuAvailable: Bool
-    var canStart: Bool { qemuAvailable && state.isIdle }
+    let startBlocked: Bool   // missing QEMU / TPM emulator for this guest
+    var canStart: Bool { !startBlocked && state.isIdle }
     var canShutdown: Bool { state == .running }
     var canRestart: Bool { state == .running }
     var canForceStop: Bool { !state.isIdle }

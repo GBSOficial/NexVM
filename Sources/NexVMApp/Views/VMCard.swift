@@ -10,7 +10,7 @@ struct VMCard: View {
     var body: some View {
         let c = item.configuration
         let state = model.state(of: item)
-        let cmd = LifecycleCommands(state: state, qemuAvailable: model.qemuAvailable)
+        let cmd = LifecycleCommands(state: state, startBlocked: model.startBlocker(for: c.guest) != nil)
         let selected = model.selection == item.id
 
         VStack(alignment: .leading, spacing: 12) {
@@ -68,7 +68,7 @@ struct VMCard: View {
             Button { model.start(item) } label: { Label(L("action.start"), systemImage: "play.fill") }
                 .buttonStyle(.borderedProminent)
                 .disabled(!cmd.canStart)
-                .help(model.qemuAvailable ? L("help.start") : L("error.noqemu"))
+                .help(model.startBlocker(for: item.configuration.guest) ?? L("help.start"))
         }
     }
 }
@@ -79,7 +79,7 @@ struct VMContextMenu: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        let cmd = LifecycleCommands(state: model.state(of: item), qemuAvailable: model.qemuAvailable)
+        let cmd = LifecycleCommands(state: model.state(of: item), startBlocked: model.startBlocker(for: item.configuration.guest) != nil)
         Button(L("action.start"), systemImage: "play.fill") { model.start(item) }.disabled(!cmd.canStart)
         Button(L("action.shutdown"), systemImage: "power") { model.requestShutdown(item) }.disabled(!cmd.canShutdown)
         Button(L("action.restart"), systemImage: "arrow.clockwise") { model.restart(item) }.disabled(!cmd.canRestart)

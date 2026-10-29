@@ -63,6 +63,7 @@
 "delete.message" = "“%@” e o disco virtual serão excluídos permanentemente. Isso não pode ser desfeito.";
 "error.title" = "Algo deu errado";
 "error.noqemu" = "QEMU não encontrado. Instale-o (por exemplo com Homebrew) para o NexVM iniciar VMs.";
+"error.notpm" = "O Windows 11 precisa de um emulador de TPM 2.0 (swtpm), que não foi encontrado junto ao QEMU. Instale o swtpm para rodar o Windows 11.";
 "quit.title" = "Ainda há máquinas virtuais em execução";
 "quit.message" = "Sair do NexVM vai forçar a parada de %ld VM(s) em execução. Dados não salvos no convidado podem ser perdidos.";
 "quit.confirm" = "Forçar parada e sair";

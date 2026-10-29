@@ -128,6 +128,9 @@ struct NewVMWizard: View {
             }
             if let p = isoProblem, isoPath != nil { problem(p) }
             if let w = isoWarning { Label(w, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(.orange) }
+            if guest == .windows11ARM64 && !model.swtpmAvailable {
+                Label(L("error.notpm"), systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(.orange)
+            }
             Text(guest == .windows11ARM64 ? L("wizard.iso.hint.windows") : L("wizard.iso.hint.linux"))
                 .font(.footnote).foregroundStyle(.secondary)
         }

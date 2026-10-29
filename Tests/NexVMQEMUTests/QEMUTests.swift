@@ -1,6 +1,7 @@
 import XCTest
 import NexVMCore
 import NexVMStorage
+import NexVMEngine
 @testable import NexVMQEMU
 
 final class QEMUCommandBuilderTests: XCTestCase {
@@ -175,5 +176,53 @@ final class ManagedProcessTests: XCTestCase {
         let r = await p.waitForExit(timeout: 0.3)
         XCTAssertNil(r)
         _ = await p.terminate(grace: 2)
+    }
+}
+
+final class SwtpmTests: XCTestCase {
+    func testArgumentsUseUnixSocketTerminateAndTPM2() throws {
+        let a = try SwtpmLaunch.arguments(stateDir: URL(fileURLWithPath: "/lib/a.nexvm/metadata/tpm"),
+                                          controlSocket: URL(fileURLWithPath: "/tmp/nx/tpm.sock"),
+                                          logFile: URL(fileURLWithPath: "/lib/a.nexvm/logs/swtpm.log"))
+        XCTAssertEqual(a.first, "socket")
+        XCTAssertTrue(a.contains("--tpm2") && a.contains("--terminate"))
+        XCTAssertTrue(a.contains("type=unixio,path=/tmp/nx/tpm.sock"))
+        XCTAssertTrue(a.contains("dir=/lib/a.nexvm/metadata/tpm"))
+        XCTAssertFalse(a.contains { $0.contains("tcp") || $0.contains("port=") })
+    }
+
+    func testCommaInPathIsRejected() {
+        XCTAssertThrowsError(try SwtpmLaunch.arguments(stateDir: URL(fileURLWithPath: "/lib/a,b/tpm"),
+                                                       controlSocket: URL(fileURLWithPath: "/tmp/s"),
+                                                       logFile: URL(fileURLWithPath: "/tmp/l")))
+    }
+
+    func testWindowsStartFailsClearlyWithoutSwtpm() async throws {
+        let engine = QEMUEngine(installation: QEMUInstallation(
+            system: URL(fileURLWithPath: "/nonexistent/qemu"),
+            firmwareCode: URL(fileURLWithPath: "/nonexistent/code.fd"),
+            firmwareVarsTemplate: URL(fileURLWithPath: "/nonexistent/vars.fd")))
+        let c = VMConfiguration(name: "w", guest: .windows11ARM64, cpuCount: 2, memoryMiB: 4096,
+                                disks: [DiskConfiguration(relativePath: "disks/a.img", sizeGiB: 64, format: .raw, interface: .nvme)])
+        do { try await engine.start(c, bundleURL: URL(fileURLWithPath: "/nonexistent/b.nexvm")); XCTFail("must fail") } catch {
+            guard case .backendUnavailable(let m) = error as? EngineError else { return XCTFail("\(error)") }
+            XCTAssertTrue(m.contains("TPM"))
+        }
+        let s = await engine.state(of: c.id)
+        XCTAssertEqual(s, .stopped)
+    }
+
+    func testLocatorFindsSwtpmNextToQEMU() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("nexvm-swtpm-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let bin = tmp.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        for n in ["qemu-system-aarch64", "swtpm"] {
+            let f = bin.appendingPathComponent(n)
+            try "#!/bin/sh\n".write(to: f, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: f.path)
+        }
+        let found = QEMUBinaryLocator.locate(searchDirectories: [bin.path])
+        XCTAssertNotNil(found?.swtpm)
     }
 }

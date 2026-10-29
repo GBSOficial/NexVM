@@ -40,6 +40,7 @@ final class LibraryViewModel {
     let logURL: URL
     let qemuPath: String?
     let qemuAvailable: Bool
+    let swtpmAvailable: Bool
     private let engine: QEMUEngine?
     private let library: VMLibrary
     private let logger: StructuredLogger
@@ -55,10 +56,12 @@ final class LibraryViewModel {
             self.engine = QEMUEngine(installation: install, logger: logger)
             self.qemuAvailable = true
             self.qemuPath = install.system.path
+            self.swtpmAvailable = install.swtpm != nil
         } else {
             self.engine = nil
             self.qemuAvailable = false
             self.qemuPath = nil
+            self.swtpmAvailable = false
         }
         reload()
         startPolling()
@@ -71,6 +74,13 @@ final class LibraryViewModel {
     func state(of id: UUID) -> VMRuntimeState { states[id] ?? .stopped }
 
     var runningItems: [VMItem] { items.filter { !state(of: $0).isIdle } }
+
+    /// Why this VM cannot be started right now (missing tooling), or nil.
+    func startBlocker(for guest: GuestOS) -> String? {
+        if !qemuAvailable { return L("error.noqemu") }
+        if guest == .windows11ARM64 && !swtpmAvailable { return L("error.notpm") }
+        return nil
+    }
 
     func refreshHost() { host = HostResources.current(volume: libraryRoot) }
 
@@ -183,6 +193,7 @@ final class LibraryViewModel {
     func start(_ item: VMItem) {
         guard let engine else { errorMessage = L("error.noqemu"); return }
         guard state(of: item).isIdle else { return }
+        if let blocker = startBlocker(for: item.configuration.guest) { errorMessage = blocker; return }
         selection = item.id   // keeps the Virtual Machine menu pointed at the VM being started
         states[item.id] = .starting
         Task {

@@ -63,6 +63,7 @@
 "delete.message" = "“%@” and its virtual disk will be permanently deleted. This cannot be undone.";
 "error.title" = "Something went wrong";
 "error.noqemu" = "QEMU was not found. Install it (for example with Homebrew) so NexVM can start VMs.";
+"error.notpm" = "Windows 11 needs a TPM 2.0 emulator (swtpm), which was not found next to QEMU. Install swtpm to run Windows 11.";
 "quit.title" = "Virtual machines are still running";
 "quit.message" = "Quitting NexVM will force-stop %ld running VM(s). Unsaved data in the guest may be lost.";
 "quit.confirm" = "Force Stop and Quit";

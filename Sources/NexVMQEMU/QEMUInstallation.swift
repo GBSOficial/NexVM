@@ -5,12 +5,14 @@ public struct QEMUInstallation: Equatable, Sendable {
     public var imageTool: URL?        // qemu-img
     public var firmwareCode: URL?     // edk2-aarch64-code.fd
     public var firmwareVarsTemplate: URL?  // edk2-arm-vars.fd (copied per VM)
+    public var swtpm: URL?            // TPM 2.0 emulator; required for Windows 11 guests
 
-    public init(system: URL, imageTool: URL? = nil, firmwareCode: URL? = nil, firmwareVarsTemplate: URL? = nil) {
+    public init(system: URL, imageTool: URL? = nil, firmwareCode: URL? = nil, firmwareVarsTemplate: URL? = nil, swtpm: URL? = nil) {
         self.system = system
         self.imageTool = imageTool
         self.firmwareCode = firmwareCode
         self.firmwareVarsTemplate = firmwareVarsTemplate
+        self.swtpm = swtpm
     }
 }
 
@@ -38,11 +40,13 @@ public enum QEMUBinaryLocator {
             let prefix = bin.deletingLastPathComponent()
             let fw = prefix.appendingPathComponent("share/qemu/edk2-aarch64-code.fd")
             let vars = prefix.appendingPathComponent("share/qemu/edk2-arm-vars.fd")
+            let tpm = bin.appendingPathComponent("swtpm")
             return QEMUInstallation(
                 system: system.resolvingSymlinksInPath(),
                 imageTool: fileManager.isExecutableFile(atPath: img.path) ? img : nil,
                 firmwareCode: fileManager.isReadableFile(atPath: fw.path) ? fw : nil,
-                firmwareVarsTemplate: fileManager.isReadableFile(atPath: vars.path) ? vars : nil
+                firmwareVarsTemplate: fileManager.isReadableFile(atPath: vars.path) ? vars : nil,
+                swtpm: fileManager.isExecutableFile(atPath: tpm.path) ? tpm : nil
             )
         }
         return nil

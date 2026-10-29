@@ -11,6 +11,7 @@ public actor QEMUEngine: VirtualMachineEngine {
         let process: ManagedProcess
         let lock: VMLock
         let socketURL: URL
+        var tpm: ManagedProcess?
         var qmp: QMPClient?
         var state: VMRuntimeState
         var shutdownRequested = false
@@ -36,6 +37,10 @@ public actor QEMUEngine: VirtualMachineEngine {
         guard let code = installation.firmwareCode, let template = installation.firmwareVarsTemplate else {
             throw EngineError.backendUnavailable("UEFI firmware (edk2) not found next to QEMU")
         }
+        // Windows 11 requires a TPM 2.0: fail clearly instead of starting a VM that cannot install.
+        if c.guest == .windows11ARM64 && installation.swtpm == nil {
+            throw EngineError.backendUnavailable("TPM 2.0 emulator (swtpm) not found; Windows 11 requires a TPM")
+        }
         let bundle = VMBundle(url: bundleURL)
         let lock: VMLock
         do { lock = try VMLock(bundleURL: bundleURL) } catch { throw EngineError.alreadyRunning(c.id) }
@@ -53,11 +58,33 @@ public actor QEMUEngine: VirtualMachineEngine {
             let socket = socketDir.appendingPathComponent("qmp.sock")
             try? FileManager.default.removeItem(at: socket)  // stale socket of a previous run of this VM
 
+            // Per-VM TPM state lives in the bundle so it survives reboots.
+            var tpmProcess: ManagedProcess?
+            var tpmSocket: URL?
+            if c.guest == .windows11ARM64, let swtpm = installation.swtpm {
+                let stateDir = try PathValidator.resolve("metadata/tpm", under: bundleURL)
+                try FileManager.default.createDirectory(at: stateDir, withIntermediateDirectories: true,
+                                                        attributes: [.posixPermissions: 0o700])
+                let ctrl = socketDir.appendingPathComponent("tpm.sock")
+                try? FileManager.default.removeItem(at: ctrl)
+                let tpm = ManagedProcess()
+                try tpm.launch(executable: swtpm,
+                               arguments: try SwtpmLaunch.arguments(stateDir: stateDir, controlSocket: ctrl,
+                                                                    logFile: bundle.logsURL.appendingPathComponent("swtpm.log")),
+                               logURL: bundle.logsURL.appendingPathComponent("swtpm-stdout.log"))
+                tpmProcess = tpm
+                tpmSocket = ctrl
+                guard await Self.waitForSocket(ctrl.path, timeout: 5) else {
+                    await tpm.terminate(grace: 1)
+                    throw EngineError.timedOut("swtpm control socket")
+                }
+            }
+
             let spec = try QEMUCommandBuilder(installation: installation).build(
                 configuration: c, bundle: bundle, firmware: QEMUFirmware(code: code, vars: vars),
-                qmpSocket: socket, options: options)
+                qmpSocket: socket, tpmSocket: tpmSocket, options: options)
             let process = ManagedProcess()
-            sessions[c.id] = Session(process: process, lock: lock, socketURL: socket, qmp: nil, state: .starting)
+            sessions[c.id] = Session(process: process, lock: lock, socketURL: socket, tpm: tpmProcess, qmp: nil, state: .starting)
             await logger?.log(.info, "qemu", "launching VM", vmID: c.id)
             try process.launch(executable: spec.executable, arguments: spec.arguments,
                                logURL: bundle.logsURL.appendingPathComponent("qemu.log"))
@@ -73,7 +100,7 @@ public actor QEMUEngine: VirtualMachineEngine {
             sessions[id]?.qmp = client
             if sessions[id]?.state == .starting { sessions[id]?.state = .running }
         } catch {
-            if let s = sessions[c.id] { await s.process.terminate(grace: 2) }
+            if let s = sessions[c.id] { await s.process.terminate(grace: 2); await s.tpm?.terminate(grace: 2) }
             sessions[c.id] = nil
             lock.release()
             let tail = (try? String(contentsOf: bundle.logsURL.appendingPathComponent("qemu.log"), encoding: .utf8))
@@ -125,6 +152,15 @@ public actor QEMUEngine: VirtualMachineEngine {
         return false
     }
 
+    private static func waitForSocket(_ path: String, timeout: TimeInterval) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if FileManager.default.fileExists(atPath: path) { return true }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return false
+    }
+
     private func handleEvent(_ id: UUID, _ name: String) async {
         await logger?.log(.debug, "qmp", "event \(name)", vmID: id)
     }
@@ -132,6 +168,7 @@ public actor QEMUEngine: VirtualMachineEngine {
     private func processExited(_ id: UUID, code: Int32) async {
         guard let s = sessions[id] else { return }
         s.qmp?.close()
+        await s.tpm?.terminate(grace: 2)   // normally already gone (--terminate); this reaps it otherwise
         try? FileManager.default.removeItem(at: s.socketURL.deletingLastPathComponent())
         let expected = s.shutdownRequested || code == 0
         sessions[id]?.state = expected ? .stopped : .error("QEMU exited unexpectedly (status \(code))")
