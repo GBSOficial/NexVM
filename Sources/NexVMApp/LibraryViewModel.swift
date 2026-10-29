@@ -152,6 +152,19 @@ final class LibraryViewModel {
         } catch { errorMessage = "\(error)" }
     }
 
+    /// Detaches the install ISO so the VM boots from its disk. Only while the VM is stopped;
+    /// the ISO file itself is never touched.
+    func ejectInstallMedia(_ item: VMItem) {
+        guard state(of: item).isIdle, item.configuration.installMedia != nil else { return }
+        var config = item.configuration
+        config.installMedia = nil
+        do {
+            try library.save(config, in: item.bundle)
+            reload()
+            Task { await logger.log(.info, "library", "install media ejected", vmID: item.id) }
+        } catch { errorMessage = "\(error)" }
+    }
+
     func revealInFinder(_ item: VMItem) { NSWorkspace.shared.activateFileViewerSelecting([item.bundle.url]) }
     func revealLibrary() {
         try? FileManager.default.createDirectory(at: libraryRoot, withIntermediateDirectories: true)
@@ -170,6 +183,7 @@ final class LibraryViewModel {
     func start(_ item: VMItem) {
         guard let engine else { errorMessage = L("error.noqemu"); return }
         guard state(of: item).isIdle else { return }
+        selection = item.id   // keeps the Virtual Machine menu pointed at the VM being started
         states[item.id] = .starting
         Task {
             do { try await engine.start(item.configuration, bundleURL: item.bundle.url) } catch {

@@ -105,6 +105,36 @@ final class EngineIntegrationTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: isoPath)[.size] as? Int, 93_452_288)
     }
 
+    /// Boots an Alpine already installed to the bundle's disk (no ISO) and shuts it down with
+    /// ACPI through the engine. Needs NEXVM_TEST_INSTALLED_BUNDLE=<path to a .nexvm bundle>.
+    func testInstalledAlpineBootsFromDiskAndShutsDownGracefully() async throws {
+        guard let path = ProcessInfo.processInfo.environment["NEXVM_TEST_INSTALLED_BUNDLE"],
+              let install = QEMUBinaryLocator.locate(), install.firmwareCode != nil, install.firmwareVarsTemplate != nil
+        else { throw XCTSkip("NEXVM_TEST_INSTALLED_BUNDLE not set or QEMU missing") }
+        let bundleURL = URL(fileURLWithPath: path)
+        let library = VMLibrary(root: bundleURL.deletingLastPathComponent())
+        var c = try library.load(VMBundle(url: bundleURL))
+        XCTAssertNil(c.installMedia, "bundle must boot from its disk")
+        c.installMedia = nil
+        let serial = root.appendingPathComponent("serial.log")
+        let engine = QEMUEngine(installation: install, options: QEMUBuildOptions(headless: true, serialLog: serial))
+        try await engine.start(c, bundleURL: bundleURL)
+        var out = ""
+        for _ in 0..<600 {
+            out = (try? String(contentsOf: serial, encoding: .utf8)) ?? ""
+            if out.contains("login:") { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTAssertTrue(out.contains("nexvm login:"), "installed system did not reach its login prompt: \(out.suffix(300))")
+        try await engine.requestShutdown(vmID: c.id)
+        let mid = await engine.state(of: c.id)
+        XCTAssertEqual(mid, .stopping)
+        let stopped = await engine.waitUntilStopped(vmID: c.id, timeout: 60)
+        XCTAssertTrue(stopped, "guest did not power off after ACPI request")
+        let end = await engine.state(of: c.id)
+        XCTAssertEqual(end, .stopped)   // clean exit, not .error
+    }
+
     func testStartFailsCleanlyWithoutFirmware() async throws {
         let engine = QEMUEngine(installation: QEMUInstallation(system: URL(fileURLWithPath: "/nonexistent/qemu")))
         let c = VMConfiguration(name: "x", guest: .linuxARM64, cpuCount: 1, memoryMiB: 1024,

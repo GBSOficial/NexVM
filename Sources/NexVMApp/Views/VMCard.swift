@@ -84,6 +84,8 @@ struct VMContextMenu: View {
         Button(L("action.shutdown"), systemImage: "power") { model.requestShutdown(item) }.disabled(!cmd.canShutdown)
         Button(L("action.restart"), systemImage: "arrow.clockwise") { model.restart(item) }.disabled(!cmd.canRestart)
         Button(L("action.forcestop"), systemImage: "xmark.octagon") { model.forceStop(item) }.disabled(!cmd.canForceStop)
+        Button(L("action.eject"), systemImage: "eject") { model.ejectInstallMedia(item) }
+            .disabled(!cmd.canStart || item.configuration.installMedia == nil)
         Divider()
         Button(L("action.details"), systemImage: "slider.horizontal.3") { openWindow(value: item.id) }
         Button(L("action.reveal"), systemImage: "folder") { model.revealInFinder(item) }

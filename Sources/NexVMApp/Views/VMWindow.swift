@@ -44,7 +44,16 @@ struct VMWindowView: View {
                         LabeledContent(L("field.memory"), value: formatMemory(c.memoryMiB))
                         LabeledContent(L("field.disk"), value: "\(c.disks.first?.sizeGiB ?? 0) GB")
                         LabeledContent(L("field.network"), value: L("network.nat"))
-                        LabeledContent(L("field.iso"), value: c.installMedia.map { URL(fileURLWithPath: $0.path).lastPathComponent } ?? "—")
+                        LabeledContent(L("field.iso")) {
+                            HStack {
+                                Text(c.installMedia.map { URL(fileURLWithPath: $0.path).lastPathComponent } ?? L("vmwindow.iso.none"))
+                                    .foregroundStyle(.secondary)
+                                if c.installMedia != nil {
+                                    Button(L("action.eject")) { model.ejectInstallMedia(item) }
+                                        .controlSize(.small).disabled(!state.isIdle).help(L("help.eject"))
+                                }
+                            }
+                        }
                     }
                     .formStyle(.columns)
                     .padding(4)

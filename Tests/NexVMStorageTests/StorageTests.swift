@@ -72,6 +72,16 @@ final class StorageTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(loaded.updatedAt, c.createdAt)
     }
 
+    func testEjectingInstallMediaPersists() throws {
+        var c = makeConfig()
+        c.installMedia = InstallMedia(path: "/some/where.iso")
+        let b = try library.create(c)
+        XCTAssertNotNil(try library.load(b).installMedia)
+        c.installMedia = nil
+        try library.save(c, in: b)
+        XCTAssertNil(try library.load(b).installMedia)
+    }
+
     func testRemoveFromLibraryKeepsData() throws {
         let b = try library.create(makeConfig())
         let moved = try library.removeFromLibrary(b)

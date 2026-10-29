@@ -1,5 +1,7 @@
 # Changelog
 ## Unreleased
+- Eject install ISO (VM window and context menu); primary disk gets `bootindex=1`; selecting the VM when started so the Virtual Machine menu works.
+- Linux install/reboot evidence and `tools/alpine-serial-install.py`.
 - Brand identity: app icon (`AppIcon.icns` built from the asset catalog), N symbol and horizontal logo, `NexVMTheme` tokens, Light/Dark support.
 - New window layout: main window with sidebar (Virtual Machines, Diagnostics, Settings link), adaptive VM cards, 4-step creation wizard with per-step validation, separate VM window with Run/Shut Down/Restart/Force Stop, Settings scene (General, Hardware Defaults, Storage, Network, Advanced), Virtual Machine menu, ⌘N / ⌘R / ⌘I / ⌘,.
 - Quitting with running VMs asks for confirmation and force-stops them (no orphan QEMU); closing windows does not stop VMs.

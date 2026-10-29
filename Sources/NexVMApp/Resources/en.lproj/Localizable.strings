@@ -27,6 +27,9 @@
 "action.refresh" = "Refresh";
 "action.revealLog" = "Show Log in Finder";
 "action.revealLibrary" = "Show Library in Finder";
+"action.eject" = "Eject Install ISO";
+"help.eject" = "Detach the install ISO so the VM boots from its disk. The ISO file is not deleted.";
+"vmwindow.iso.none" = "None (boots from disk)";
 "menu.vm" = "Virtual Machine";
 "help.newvm" = "Create a new virtual machine (⌘N)";
 "help.start" = "Start this virtual machine";

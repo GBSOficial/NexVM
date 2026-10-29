@@ -73,11 +73,14 @@ public struct QEMUCommandBuilder: Sendable {
             let path = try PathValidator.resolve(disk.relativePath, under: bundle.url)
             let id = "disk\(i)"
             a += ["-drive", "if=none,id=\(id),format=\(disk.format.rawValue),file=\(e(path.path))"]
+            // The first disk gets bootindex=1 (install media keeps 0) so firmware lists it in the
+            // boot order; without it UEFI falls back to its shell when no ISO is attached.
+            let boot = i == 0 ? ",bootindex=1" : ""
             switch disk.interface {
             case .virtioBlk:
-                a += ["-device", "virtio-blk-pci,drive=\(id)"]
+                a += ["-device", "virtio-blk-pci,drive=\(id)\(boot)"]
             case .nvme:
-                a += ["-device", "nvme,drive=\(id),serial=nexvm\(i)"]
+                a += ["-device", "nvme,drive=\(id),serial=nexvm\(i)\(boot)"]
             }
         }
 

@@ -27,6 +27,9 @@
 "action.refresh" = "Atualizar";
 "action.revealLog" = "Mostrar registo no Finder";
 "action.revealLibrary" = "Mostrar biblioteca no Finder";
+"action.eject" = "Ejetar ISO de instalação";
+"help.eject" = "Desanexa a ISO de instalação para a VM iniciar pelo disco. O ficheiro ISO não é apagado.";
+"vmwindow.iso.none" = "Nenhuma (inicia pelo disco)";
 "menu.vm" = "Máquina Virtual";
 "help.newvm" = "Criar uma nova máquina virtual (⌘N)";
 "help.start" = "Iniciar esta máquina virtual";
